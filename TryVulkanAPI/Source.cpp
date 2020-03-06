@@ -1,25 +1,16 @@
-#include<vulkan/vulkan.hpp>
-#define GLFW_INCLUDE_VULKAN
-#include<GLFW/glfw3.h>
-#include<iostream>
-#include<glm.hpp>
+#include"HelloTriangle.h"
 
 int main()
 {
-    glfwInit();
-    GLFWwindow* window = glfwCreateWindow(800, 600, "vulkan window", nullptr, nullptr);
-    auto extensions = vk::enumerateInstanceExtensionProperties();
-    for (const auto& i : extensions)
+    HelloTriangleApplication app;
+    try
     {
-        std::cout << i.extensionName << '\n';
+        app.run();
     }
-    std::cout << extensions.size() << " extensions supported" << '\n';
-
-    while (!glfwWindowShouldClose(window))
+    catch (const std::exception & e)
     {
-        glfwPollEvents();
+        std::cerr << e.what() << '\n';
+        return -1;
     }
-    glfwDestroyWindow(window);
-    glfwTerminate();
     return 0;
 }
