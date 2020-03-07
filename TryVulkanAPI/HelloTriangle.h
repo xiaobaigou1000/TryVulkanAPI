@@ -1,7 +1,7 @@
 #pragma once
-#include<vulkan/vulkan.hpp>
 #define GLFW_INCLUDE_VULKAN
 #include<GLFW/glfw3.h>
+#include<vulkan/vulkan.hpp>
 #include<glm.hpp>
 #include<iostream>
 #include<vector>
@@ -16,6 +16,10 @@ private:
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
     vk::DebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo;
+    vk::PhysicalDevice physicalDevice;
+    vk::Device device;
+
+    vk::SurfaceKHR surface;
 
     int width = 800;
     int height = 600;
@@ -35,9 +39,13 @@ private:
     void createInstance();
     bool checkValidationLayerSupport();
     void setupDebugMessenger();
+    void pickPhysicalDevice();
+    void createLogicalDevice();
 
     vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo();
     std::vector<const char*> getRequiredExtensions();
+    uint32_t findQueueFamilies();
+
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
         VkDebugUtilsMessageTypeFlagsEXT messageType,
