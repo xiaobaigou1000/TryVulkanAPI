@@ -20,6 +20,7 @@ void HelloTriangleApplication::initVulkan()
 {
     createInstance();
     setupDebugMessenger();
+    createSurface();
     pickPhysicalDevice();
     createLogicalDevice();
 }
@@ -40,6 +41,7 @@ void HelloTriangleApplication::cleanup()
     {
         debugMessengerDestroyFunc(instance, debugMessenger, nullptr);
     }
+    instance.destroySurfaceKHR(surface);
     instance.destroy();
     glfwDestroyWindow(window);
     glfwTerminate();
@@ -103,7 +105,7 @@ void HelloTriangleApplication::setupDebugMessenger()
     auto debugCreateFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
     if (debugCreateFunc != nullptr)
     {
-        VkResult result = debugCreateFunc(instance, reinterpret_cast<VkDebugUtilsMessengerCreateInfoEXT*>(&debugMessengerCreateInfo), nullptr,reinterpret_cast<VkDebugUtilsMessengerEXT*>(&debugMessenger));
+        VkResult result = debugCreateFunc(instance, reinterpret_cast<VkDebugUtilsMessengerCreateInfoEXT*>(&debugMessengerCreateInfo), nullptr, reinterpret_cast<VkDebugUtilsMessengerEXT*>(&debugMessenger));
         if (result != VK_SUCCESS)
         {
             throw std::runtime_error("failes to set up debug messenger");
@@ -138,17 +140,33 @@ void HelloTriangleApplication::pickPhysicalDevice()
 
 void HelloTriangleApplication::createLogicalDevice()
 {
-    uint32_t queueFamilyIndex = findQueueFamilies();
+    auto queueFamilyIndex = findQueueFamilies();
     float queuePriority = 1.0f;
-    vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, queueFamilyIndex, 1, &queuePriority);
-    vk::PhysicalDeviceFeatures physicalDeviceFeatures;
-    vk::DeviceCreateInfo createInfo({},1,&deviceQueueCreateInfo);
+    std::vector<vk::DeviceQueueCreateInfo> queueCreateInfos;
+    std::array<uint32_t, 2> queueFamilies = { queueFamilyIndex.graphicsFamily,queueFamilyIndex.presentFamily };
+    for (uint32_t i : queueFamilies)
+    {
+        vk::DeviceQueueCreateInfo deviceQueueCreateInfo({}, i, 1, &queuePriority);
+        queueCreateInfos.push_back(deviceQueueCreateInfo);
+    }
+
+    vk::DeviceCreateInfo createInfo({}, 2, queueCreateInfos.data());
     if (enableValidationLayers)
     {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
     }
     device = physicalDevice.createDevice(createInfo);
+    graphicsQueue = device.getQueue(queueFamilyIndex.graphicsFamily, 0);
+    presentQueue = device.getQueue(queueFamilyIndex.presentFamily, 0);
+}
+
+void HelloTriangleApplication::createSurface()
+{
+    if (glfwCreateWindowSurface(instance, window, nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface)) != VK_SUCCESS)
+    {
+        throw std::runtime_error("glfw create window surface failed.");
+    }
 }
 
 vk::DebugUtilsMessengerCreateInfoEXT HelloTriangleApplication::getDebugMessengerCreateInfo()
@@ -179,30 +197,39 @@ std::vector<const char*> HelloTriangleApplication::getRequiredExtensions()
     return extensions;
 }
 
-uint32_t HelloTriangleApplication::findQueueFamilies()
+HelloTriangleApplication::QueueFamilyIndices HelloTriangleApplication::findQueueFamilies()
 {
     auto queueFamilies = physicalDevice.getQueueFamilyProperties();
     std::cout << "total queue family num :" << queueFamilies.size() << '\n';
-    
-    uint32_t queueFamilyIndex = -1;
+
+    uint32_t graphicsFamily = -1;
+    uint32_t presentFamily = -1;
     for (uint32_t i = 0; i < queueFamilies.size(); ++i)
     {
-        if (queueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics)
+        if (graphicsFamily == -1 && (queueFamilies[i].queueFlags & vk::QueueFlagBits::eGraphics))
         {
-            queueFamilyIndex = i;
+            graphicsFamily = i;
+        }
+        if (presentFamily == -1 && physicalDevice.getSurfaceSupportKHR(i, surface))
+        {
+            presentFamily = i;
         }
     }
 
-    if (queueFamilyIndex < 0)
+    if (graphicsFamily < 0)
     {
         throw std::runtime_error("no queue family support" + vk::to_string(vk::QueueFlagBits::eGraphics));
     }
+    if (presentFamily < 0)
+    {
+        throw std::runtime_error("queue family unsupport win32 surface khr");
+    }
 
-    std::cout << "selected queue family :" << queueFamilyIndex << '\n';
-    std::cout << vk::to_string(queueFamilies[queueFamilyIndex].queueFlags) << '\n';
-    std::cout << "queue count :" << queueFamilies[queueFamilyIndex].queueCount << '\n';
+    std::cout << "selected queue family :" << graphicsFamily << '\n';
+    std::cout << vk::to_string(queueFamilies[graphicsFamily].queueFlags) << '\n';
+    std::cout << "queue count :" << queueFamilies[graphicsFamily].queueCount << '\n';
 
-    return queueFamilyIndex;
+    return { graphicsFamily,presentFamily };
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(

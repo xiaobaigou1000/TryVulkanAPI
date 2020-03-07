@@ -6,18 +6,27 @@
 #include<iostream>
 #include<vector>
 #include<functional>
+#include<array>
 
 class HelloTriangleApplication
 {
 public:
     void run();
 private:
+    struct QueueFamilyIndices
+    {
+        uint32_t graphicsFamily;
+        uint32_t presentFamily;
+    };
+
     GLFWwindow* window;
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
     vk::DebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo;
     vk::PhysicalDevice physicalDevice;
     vk::Device device;
+    vk::Queue graphicsQueue;
+    vk::Queue presentQueue;
 
     vk::SurfaceKHR surface;
 
@@ -41,10 +50,11 @@ private:
     void setupDebugMessenger();
     void pickPhysicalDevice();
     void createLogicalDevice();
+    void createSurface();
 
     vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo();
     std::vector<const char*> getRequiredExtensions();
-    uint32_t findQueueFamilies();
+    QueueFamilyIndices findQueueFamilies();
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
