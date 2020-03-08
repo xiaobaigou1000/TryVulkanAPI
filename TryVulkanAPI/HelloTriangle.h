@@ -36,9 +36,13 @@ private:
     vk::Queue presentQueue;
 
     vk::SurfaceKHR surface;
+    vk::SwapchainKHR swapChain;
+    std::vector<vk::Image> swapChainImages;
+    vk::Format swapChainImageFormat;
+    vk::Extent2D swapChainExtent;
 
-    int width = 800;
-    int height = 600;
+    uint32_t width = 800;
+    uint32_t height = 600;
 
     std::vector<const char*> physicalDeviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
@@ -60,7 +64,11 @@ private:
     void pickPhysicalDevice();
     void createLogicalDevice();
     void createSurface();
+    void createSwapChain();
 
+    static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
+    static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
+    vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities);
     SwapChainSupportDetails querySwapChainSupport();
     vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo();
     std::vector<const char*> getRequiredExtensions();
