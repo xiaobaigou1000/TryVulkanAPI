@@ -97,6 +97,26 @@ bool HelloTriangleApplication::checkValidationLayerSupport()
     return true;
 }
 
+void HelloTriangleApplication::checkPhysicalDeviceExtensionSupport()
+{
+    auto availableExtensions = physicalDevice.enumerateDeviceExtensionProperties();
+    for (const auto& i : physicalDeviceExtensions)
+    {
+        bool checked = false;
+        for (const auto& j : availableExtensions)
+        {
+            if (std::string(j.extensionName) == std::string(i))
+            {
+                checked = true;
+            }
+        }
+        if (!checked)
+        {
+            throw std::runtime_error("physical device extension check failed :" + std::string(i));
+        }
+    }
+}
+
 void HelloTriangleApplication::setupDebugMessenger()
 {
     if (!enableValidationLayers)
@@ -150,7 +170,15 @@ void HelloTriangleApplication::createLogicalDevice()
         queueCreateInfos.push_back(deviceQueueCreateInfo);
     }
 
-    vk::DeviceCreateInfo createInfo({}, 2, queueCreateInfos.data());
+    checkPhysicalDeviceExtensionSupport();
+    auto swapChainSupportDetails = querySwapChainSupport();
+    if (swapChainSupportDetails.formats.empty() || swapChainSupportDetails.presentModes.empty())
+    {
+        throw std::runtime_error("swap chain support inadequate.");
+    }
+
+    vk::DeviceCreateInfo createInfo({}, 2, queueCreateInfos.data(), 0, nullptr,
+        static_cast<uint32_t>(physicalDeviceExtensions.size()), physicalDeviceExtensions.data());
     if (enableValidationLayers)
     {
         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -167,6 +195,16 @@ void HelloTriangleApplication::createSurface()
     {
         throw std::runtime_error("glfw create window surface failed.");
     }
+}
+
+HelloTriangleApplication::SwapChainSupportDetails HelloTriangleApplication::querySwapChainSupport()
+{
+    SwapChainSupportDetails details;
+    details.capabilities = physicalDevice.getSurfaceCapabilitiesKHR(surface);
+    std::cout << "window capabilities : " << vk::to_string(details.capabilities.supportedUsageFlags) << '\n';
+    details.formats = physicalDevice.getSurfaceFormatsKHR(surface);
+    details.presentModes = physicalDevice.getSurfacePresentModesKHR(surface);
+    return details;
 }
 
 vk::DebugUtilsMessengerCreateInfoEXT HelloTriangleApplication::getDebugMessengerCreateInfo()
@@ -210,7 +248,7 @@ HelloTriangleApplication::QueueFamilyIndices HelloTriangleApplication::findQueue
         {
             graphicsFamily = i;
         }
-        if (presentFamily == -1 && physicalDevice.getSurfaceSupportKHR(i, surface))
+        if (presentFamily == -1 && physicalDevice.getSurfaceSupportKHR(i, surface) && graphicsFamily != i)
         {
             presentFamily = i;
         }

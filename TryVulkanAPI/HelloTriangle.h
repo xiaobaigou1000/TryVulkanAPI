@@ -19,6 +19,13 @@ private:
         uint32_t presentFamily;
     };
 
+    struct SwapChainSupportDetails
+    {
+        vk::SurfaceCapabilitiesKHR capabilities;
+        std::vector<vk::SurfaceFormatKHR> formats;
+        std::vector<vk::PresentModeKHR> presentModes;
+    };
+
     GLFWwindow* window;
     vk::Instance instance;
     vk::DebugUtilsMessengerEXT debugMessenger;
@@ -33,6 +40,7 @@ private:
     int width = 800;
     int height = 600;
 
+    std::vector<const char*> physicalDeviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
 #ifdef NDEBUG
     const bool enableValidationLayers = false;
@@ -47,11 +55,13 @@ private:
 
     void createInstance();
     bool checkValidationLayerSupport();
+    void checkPhysicalDeviceExtensionSupport();
     void setupDebugMessenger();
     void pickPhysicalDevice();
     void createLogicalDevice();
     void createSurface();
 
+    SwapChainSupportDetails querySwapChainSupport();
     vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo();
     std::vector<const char*> getRequiredExtensions();
     QueueFamilyIndices findQueueFamilies();
