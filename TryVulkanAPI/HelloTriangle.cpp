@@ -25,6 +25,7 @@ void HelloTriangleApplication::initVulkan()
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createGraphicsPipeline();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -256,6 +257,37 @@ void HelloTriangleApplication::createImageViews()
     }
 }
 
+void HelloTriangleApplication::createGraphicsPipeline()
+{
+    auto vertexShaderCode = readShaderCode("./shaders/simpleTriangleVert.spv");
+    auto fragmentShaderCode = readShaderCode("./shaders/simpleTriangleFrag.spv");
+    vk::ShaderModule vertexShaderModule = createShaderModule(vertexShaderCode);
+    vk::ShaderModule fragmentShaderModule = createShaderModule(fragmentShaderCode);
+
+    vk::PipelineShaderStageCreateInfo vertexShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertexShaderModule, "main");
+    vk::PipelineShaderStageCreateInfo fragmentShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragmentShaderModule, "main");
+    vk::PipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertexShaderStageCreateInfo,fragmentShaderStageCreateInfo };
+
+    device.destroyShaderModule(vertexShaderModule);
+    device.destroyShaderModule(fragmentShaderModule);
+}
+
+std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)
+{
+    std::ifstream file(fileName, std::ios::ate | std::ios::binary);
+    if (!file.is_open())
+    {
+        throw std::runtime_error("open file failed.");
+    }
+    size_t fileSize = static_cast<size_t>(file.tellg());
+    std::vector<char> buffer;
+    buffer.resize(fileSize);
+    file.seekg(std::ios::beg);
+    file.read(buffer.data(), fileSize);
+    file.close();
+    return buffer;
+}
+
 vk::SurfaceFormatKHR HelloTriangleApplication::chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
 {
     for (const auto i : availableFormats)
@@ -278,6 +310,12 @@ vk::PresentModeKHR HelloTriangleApplication::chooseSwapPresentMode(const std::ve
         }
     }
     return vk::PresentModeKHR::eFifo;
+}
+
+vk::ShaderModule HelloTriangleApplication::createShaderModule(const std::vector<char>& code)
+{
+    vk::ShaderModuleCreateInfo createInfo({}, code.size(), reinterpret_cast<const uint32_t*>(code.data()));
+    return device.createShaderModule(createInfo);
 }
 
 vk::Extent2D HelloTriangleApplication::chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities)

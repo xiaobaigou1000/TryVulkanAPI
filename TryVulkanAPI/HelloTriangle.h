@@ -7,6 +7,7 @@
 #include<vector>
 #include<functional>
 #include<array>
+#include<fstream>
 
 class HelloTriangleApplication
 {
@@ -67,9 +68,12 @@ private:
     void createSurface();
     void createSwapChain();
     void createImageViews();
+    void createGraphicsPipeline();
 
+    static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
+    vk::ShaderModule createShaderModule(const std::vector<char>& code);
     vk::Extent2D chooseSwapExtent(const vk::SurfaceCapabilitiesKHR& capabilities);
     SwapChainSupportDetails querySwapChainSupport();
     vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo();
