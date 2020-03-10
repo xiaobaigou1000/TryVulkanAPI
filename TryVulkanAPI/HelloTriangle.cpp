@@ -24,6 +24,7 @@ void HelloTriangleApplication::initVulkan()
     pickPhysicalDevice();
     createLogicalDevice();
     createSwapChain();
+    createImageViews();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -36,6 +37,10 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    for (const auto& i : swapChainImageViews)
+    {
+        device.destroyImageView(i);
+    }
     device.destroySwapchainKHR(swapChain);
     device.destroy();
     auto debugMessengerDestroyFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -236,6 +241,19 @@ void HelloTriangleApplication::createSwapChain()
     swapChainImages = device.getSwapchainImagesKHR(swapChain);
     swapChainImageFormat = surfaceFormat.format;
     swapChainExtent = extent;
+}
+
+void HelloTriangleApplication::createImageViews()
+{
+    swapChainImageViews.resize(swapChainImages.size());
+    for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
+    {
+        vk::ImageSubresourceRange subresourceRange;
+        vk::ImageViewCreateInfo createInfo({}, swapChainImages[i], vk::ImageViewType::e2D, swapChainImageFormat,
+            { vk::ComponentSwizzle::eIdentity,vk::ComponentSwizzle::eIdentity ,vk::ComponentSwizzle::eIdentity ,vk::ComponentSwizzle::eIdentity },
+            { vk::ImageAspectFlagBits::eColor,0,1,0,1 });
+        swapChainImageViews[i] = device.createImageView(createInfo);
+    }
 }
 
 vk::SurfaceFormatKHR HelloTriangleApplication::chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats)
