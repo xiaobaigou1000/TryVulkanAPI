@@ -35,6 +35,8 @@ private:
     vk::Device device;
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
+    vk::RenderPass renderPass;
+    vk::PipelineLayout pipelineLayout;
 
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
@@ -68,6 +70,7 @@ private:
     void createSurface();
     void createSwapChain();
     void createImageViews();
+    void createRenderPass();
     void createGraphicsPipeline();
 
     static std::vector<char> readShaderCode(const std::string& fileName);

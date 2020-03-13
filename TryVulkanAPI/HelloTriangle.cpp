@@ -25,6 +25,7 @@ void HelloTriangleApplication::initVulkan()
     createLogicalDevice();
     createSwapChain();
     createImageViews();
+    createRenderPass();
     createGraphicsPipeline();
 }
 
@@ -38,6 +39,8 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    device.destroyPipelineLayout(pipelineLayout);
+    device.destroyRenderPass(renderPass);
     for (const auto& i : swapChainImageViews)
     {
         device.destroyImageView(i);
@@ -257,6 +260,22 @@ void HelloTriangleApplication::createImageViews()
     }
 }
 
+void HelloTriangleApplication::createRenderPass()
+{
+    vk::AttachmentDescription colorAttachment(
+        {}, swapChainImageFormat, vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR);
+    vk::AttachmentReference colorAttachmentRef(0,vk::ImageLayout::eColorAttachmentOptimal);
+    vk::SubpassDescription subpass({},vk::PipelineBindPoint::eGraphics);
+    subpass.colorAttachmentCount = 1;
+    subpass.pColorAttachments = &colorAttachmentRef;
+
+    vk::RenderPassCreateInfo renderPassInfo({},1,&colorAttachment,1,&subpass);
+    renderPass = device.createRenderPass(renderPassInfo);
+}
+
 void HelloTriangleApplication::createGraphicsPipeline()
 {
     auto vertexShaderCode = readShaderCode("./shaders/simpleTriangleVert.spv");
@@ -267,6 +286,30 @@ void HelloTriangleApplication::createGraphicsPipeline()
     vk::PipelineShaderStageCreateInfo vertexShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eVertex, vertexShaderModule, "main");
     vk::PipelineShaderStageCreateInfo fragmentShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragmentShaderModule, "main");
     vk::PipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertexShaderStageCreateInfo,fragmentShaderStageCreateInfo };
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo({}, 0, nullptr, 0, nullptr);
+    vk::PipelineInputAssemblyStateCreateInfo inputAssembly({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
+    vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
+    vk::Rect2D scissor({ 0,0 }, swapChainExtent);
+    vk::PipelineViewportStateCreateInfo viewportState({}, 1, &viewport, 1, &scissor);
+    vk::PipelineRasterizationStateCreateInfo rasterizer(
+        {}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack,
+        vk::FrontFace::eClockwise, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f);
+    vk::PipelineMultisampleStateCreateInfo multisampling({}, vk::SampleCountFlagBits::e1, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE);
+    vk::PipelineColorBlendAttachmentState colorBlendAttachment(
+        VK_FALSE, vk::BlendFactor::eOne, vk::BlendFactor::eZero,
+        vk::BlendOp::eAdd, vk::BlendFactor::eOne, vk::BlendFactor::eZero, vk::BlendOp::eAdd,
+        vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+    vk::PipelineColorBlendStateCreateInfo colorBlending({}, VK_FALSE, vk::LogicOp::eClear, 1, &colorBlendAttachment, { 0.0f,0.0f,0.0f,0.0f });
+    vk::DynamicState dynamicStates[] = {
+        vk::DynamicState::eViewport,
+        vk::DynamicState::eLineWidth
+    };
+    vk::PipelineDynamicStateCreateInfo dynamicState({}, 2, dynamicStates);
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
+    pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
+
 
     device.destroyShaderModule(vertexShaderModule);
     device.destroyShaderModule(fragmentShaderModule);
