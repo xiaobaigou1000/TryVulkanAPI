@@ -43,6 +43,7 @@ private:
     vk::SwapchainKHR swapChain;
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> swapChainImageViews;
+    std::vector<vk::Framebuffer> swapChainFrameBuffers;
     vk::Format swapChainImageFormat;
     vk::Extent2D swapChainExtent;
 
@@ -73,6 +74,7 @@ private:
     void createImageViews();
     void createRenderPass();
     void createGraphicsPipeline();
+    void createFrameBuffers();
 
     static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);

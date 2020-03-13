@@ -27,6 +27,7 @@ void HelloTriangleApplication::initVulkan()
     createImageViews();
     createRenderPass();
     createGraphicsPipeline();
+    createFrameBuffers();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -39,6 +40,10 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    for (const auto& i : swapChainFrameBuffers)
+    {
+        device.destroyFramebuffer(i);
+    }
     device.destroyPipeline(graphicsPipeline);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
@@ -320,6 +325,17 @@ void HelloTriangleApplication::createGraphicsPipeline()
 
     device.destroyShaderModule(vertexShaderModule);
     device.destroyShaderModule(fragmentShaderModule);
+}
+
+void HelloTriangleApplication::createFrameBuffers()
+{
+    swapChainFrameBuffers.resize(swapChainImageViews.size());
+    for (uint32_t i = 0; i < swapChainImageViews.size(); i++)
+    {
+        vk::ImageView* attachments = &swapChainImageViews[i];
+        vk::FramebufferCreateInfo framebufferInfo({}, renderPass, 1, attachments, swapChainExtent.width, swapChainExtent.height, 1);
+        swapChainFrameBuffers[i] = device.createFramebuffer(framebufferInfo);
+    }
 }
 
 std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)
