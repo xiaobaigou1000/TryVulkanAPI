@@ -39,6 +39,7 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    device.destroyPipeline(graphicsPipeline);
     device.destroyPipelineLayout(pipelineLayout);
     device.destroyRenderPass(renderPass);
     for (const auto& i : swapChainImageViews)
@@ -267,12 +268,12 @@ void HelloTriangleApplication::createRenderPass()
         vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore,
         vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR);
-    vk::AttachmentReference colorAttachmentRef(0,vk::ImageLayout::eColorAttachmentOptimal);
-    vk::SubpassDescription subpass({},vk::PipelineBindPoint::eGraphics);
+    vk::AttachmentReference colorAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
+    vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics);
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
 
-    vk::RenderPassCreateInfo renderPassInfo({},1,&colorAttachment,1,&subpass);
+    vk::RenderPassCreateInfo renderPassInfo({}, 1, &colorAttachment, 1, &subpass);
     renderPass = device.createRenderPass(renderPassInfo);
 }
 
@@ -309,7 +310,13 @@ void HelloTriangleApplication::createGraphicsPipeline()
     vk::PipelineDynamicStateCreateInfo dynamicState({}, 2, dynamicStates);
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
     pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
-
+    vk::GraphicsPipelineCreateInfo createInfo(
+        {}, 2, shaderStageCreateInfos,
+        &vertexInputInfo, &inputAssembly, nullptr,
+        &viewportState, &rasterizer, &multisampling,
+        nullptr, &colorBlending, &dynamicState,
+        pipelineLayout, renderPass, 0);
+    graphicsPipeline = device.createGraphicsPipeline({}, createInfo);
 
     device.destroyShaderModule(vertexShaderModule);
     device.destroyShaderModule(fragmentShaderModule);

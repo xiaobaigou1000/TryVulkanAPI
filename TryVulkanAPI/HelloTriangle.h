@@ -37,6 +37,7 @@ private:
     vk::Queue presentQueue;
     vk::RenderPass renderPass;
     vk::PipelineLayout pipelineLayout;
+    vk::Pipeline graphicsPipeline;
 
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
