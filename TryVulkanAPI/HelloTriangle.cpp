@@ -30,6 +30,7 @@ void HelloTriangleApplication::initVulkan()
     createFrameBuffers();
     createCommandPool();
     createCommandBuffers();
+    createSemaphores();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -39,10 +40,13 @@ void HelloTriangleApplication::mainLoop()
         glfwPollEvents();
         drawFrame();
     }
+    device.waitIdle();
 }
 
 void HelloTriangleApplication::cleanup()
 {
+    device.destroySemaphore(imageAvailableSemaphore);
+    device.destroySemaphore(renderFinishedSemaphore);
     device.destroyCommandPool(commandPool);
     for (const auto& i : swapChainFrameBuffers)
     {
@@ -282,7 +286,13 @@ void HelloTriangleApplication::createRenderPass()
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colorAttachmentRef;
 
-    vk::RenderPassCreateInfo renderPassInfo({}, 1, &colorAttachment, 1, &subpass);
+    vk::SubpassDependency dependency(
+        VK_SUBPASS_EXTERNAL, 0,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput, vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        {}, vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
+        vk::DependencyFlagBits::eByRegion);
+
+    vk::RenderPassCreateInfo renderPassInfo({}, 1, &colorAttachment, 1, &subpass, 1, &dependency);
     renderPass = device.createRenderPass(renderPassInfo);
 }
 
@@ -357,12 +367,12 @@ void HelloTriangleApplication::createCommandBuffers()
 
     for (uint32_t i = 0; i < commandBuffers.size(); i++)
     {
-        vk::CommandBufferBeginInfo beginInfo({},nullptr);
+        vk::CommandBufferBeginInfo beginInfo({}, nullptr);
         commandBuffers[i].begin(beginInfo);
         vk::ClearValue clearColor(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
         vk::RenderPassBeginInfo renderPassInfo(renderPass, swapChainFrameBuffers[i], { {0,0},swapChainExtent }, 1, &clearColor);
         commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
-        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics,graphicsPipeline);
+        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
         commandBuffers[i].setViewport(0, { {0.0f,0.0f,static_cast<float>(width),static_cast<float>(height),0.0f,1.0f} });
         commandBuffers[i].draw(3, 1, 0, 0);
         commandBuffers[i].endRenderPass();
@@ -372,10 +382,21 @@ void HelloTriangleApplication::createCommandBuffers()
 
 void HelloTriangleApplication::drawFrame()
 {
+    auto imageIndex = device.acquireNextImageKHR(swapChain, 0xFFFFFFFF, imageAvailableSemaphore, {});
+    vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore, &waitStageMask, 1, &commandBuffers[imageIndex.value], 1, &renderFinishedSemaphore);
+    graphicsQueue.submit({ submitInfo }, {});
+
+    vk::PresentInfoKHR presentInfo(1,&renderFinishedSemaphore,1,&swapChain,&imageIndex.value,nullptr);
+    presentQueue.presentKHR(presentInfo);
+    graphicsQueue.waitIdle();
 }
 
 void HelloTriangleApplication::createSemaphores()
 {
+    vk::SemaphoreCreateInfo semaphoreInfo;
+    imageAvailableSemaphore = device.createSemaphore(semaphoreInfo);
+    renderFinishedSemaphore = device.createSemaphore(semaphoreInfo);
 }
 
 std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)

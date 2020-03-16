@@ -50,6 +50,9 @@ private:
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
 
+    vk::Semaphore imageAvailableSemaphore;
+    vk::Semaphore renderFinishedSemaphore;
+
     uint32_t width = 800;
     uint32_t height = 600;
 
