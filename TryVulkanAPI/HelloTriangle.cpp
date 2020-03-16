@@ -28,6 +28,8 @@ void HelloTriangleApplication::initVulkan()
     createRenderPass();
     createGraphicsPipeline();
     createFrameBuffers();
+    createCommandPool();
+    createCommandBuffers();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -35,11 +37,13 @@ void HelloTriangleApplication::mainLoop()
     while (!glfwWindowShouldClose(window))
     {
         glfwPollEvents();
+        drawFrame();
     }
 }
 
 void HelloTriangleApplication::cleanup()
 {
+    device.destroyCommandPool(commandPool);
     for (const auto& i : swapChainFrameBuffers)
     {
         device.destroyFramebuffer(i);
@@ -336,6 +340,42 @@ void HelloTriangleApplication::createFrameBuffers()
         vk::FramebufferCreateInfo framebufferInfo({}, renderPass, 1, attachments, swapChainExtent.width, swapChainExtent.height, 1);
         swapChainFrameBuffers[i] = device.createFramebuffer(framebufferInfo);
     }
+}
+
+void HelloTriangleApplication::createCommandPool()
+{
+    auto queueFamilyIndices = findQueueFamilies();
+    vk::CommandPoolCreateInfo poolInfo({}, queueFamilyIndices.graphicsFamily);
+    commandPool = device.createCommandPool(poolInfo);
+}
+
+void HelloTriangleApplication::createCommandBuffers()
+{
+    commandBuffers.resize(swapChainFrameBuffers.size());
+    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, commandBuffers.size());
+    commandBuffers = device.allocateCommandBuffers(allocInfo);
+
+    for (uint32_t i = 0; i < commandBuffers.size(); i++)
+    {
+        vk::CommandBufferBeginInfo beginInfo({},nullptr);
+        commandBuffers[i].begin(beginInfo);
+        vk::ClearValue clearColor(std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f});
+        vk::RenderPassBeginInfo renderPassInfo(renderPass, swapChainFrameBuffers[i], { {0,0},swapChainExtent }, 1, &clearColor);
+        commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
+        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics,graphicsPipeline);
+        commandBuffers[i].setViewport(0, { {0.0f,0.0f,static_cast<float>(width),static_cast<float>(height),0.0f,1.0f} });
+        commandBuffers[i].draw(3, 1, 0, 0);
+        commandBuffers[i].endRenderPass();
+        commandBuffers[i].end();
+    }
+}
+
+void HelloTriangleApplication::drawFrame()
+{
+}
+
+void HelloTriangleApplication::createSemaphores()
+{
 }
 
 std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)

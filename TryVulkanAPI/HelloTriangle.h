@@ -47,6 +47,9 @@ private:
     vk::Format swapChainImageFormat;
     vk::Extent2D swapChainExtent;
 
+    vk::CommandPool commandPool;
+    std::vector<vk::CommandBuffer> commandBuffers;
+
     uint32_t width = 800;
     uint32_t height = 600;
 
@@ -75,6 +78,10 @@ private:
     void createRenderPass();
     void createGraphicsPipeline();
     void createFrameBuffers();
+    void createCommandPool();
+    void createCommandBuffers();
+    void drawFrame();
+    void createSemaphores();
 
     static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
