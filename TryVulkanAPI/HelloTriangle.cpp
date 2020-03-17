@@ -30,7 +30,7 @@ void HelloTriangleApplication::initVulkan()
     createFrameBuffers();
     createCommandPool();
     createCommandBuffers();
-    createSemaphores();
+    createSyncObjects();
 }
 
 void HelloTriangleApplication::mainLoop()
@@ -45,8 +45,13 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
-    device.destroySemaphore(imageAvailableSemaphore);
-    device.destroySemaphore(renderFinishedSemaphore);
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        device.destroySemaphore(imageAvailableSemaphore[i]);
+        device.destroySemaphore(renderFinishedSemaphore[i]);
+        device.destroyFence(inFlightFences[i]);
+    }
+
     device.destroyCommandPool(commandPool);
     for (const auto& i : swapChainFrameBuffers)
     {
@@ -382,21 +387,29 @@ void HelloTriangleApplication::createCommandBuffers()
 
 void HelloTriangleApplication::drawFrame()
 {
-    auto imageIndex = device.acquireNextImageKHR(swapChain, 0xFFFFFFFF, imageAvailableSemaphore, {});
-    vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore, &waitStageMask, 1, &commandBuffers[imageIndex.value], 1, &renderFinishedSemaphore);
-    graphicsQueue.submit({ submitInfo }, {});
+    device.waitForFences({ inFlightFences[currentFrame] },VK_TRUE,0xFFFFFFFF);
+    device.resetFences({ inFlightFences[currentFrame] });
 
-    vk::PresentInfoKHR presentInfo(1,&renderFinishedSemaphore,1,&swapChain,&imageIndex.value,nullptr);
+    auto imageIndex = device.acquireNextImageKHR(swapChain, 0xFFFFFFFF, imageAvailableSemaphore[currentFrame], {});
+    vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore[currentFrame], &waitStageMask, 1, &commandBuffers[imageIndex.value], 1, &renderFinishedSemaphore[currentFrame]);
+    graphicsQueue.submit({ submitInfo }, inFlightFences[currentFrame]);
+
+    vk::PresentInfoKHR presentInfo(1,&renderFinishedSemaphore[currentFrame],1,&swapChain,&imageIndex.value,nullptr);
     presentQueue.presentKHR(presentInfo);
-    graphicsQueue.waitIdle();
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-void HelloTriangleApplication::createSemaphores()
+void HelloTriangleApplication::createSyncObjects()
 {
     vk::SemaphoreCreateInfo semaphoreInfo;
-    imageAvailableSemaphore = device.createSemaphore(semaphoreInfo);
-    renderFinishedSemaphore = device.createSemaphore(semaphoreInfo);
+    vk::FenceCreateInfo fenceInfo(vk::FenceCreateFlagBits::eSignaled);
+    for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
+    {
+        imageAvailableSemaphore.push_back(device.createSemaphore(semaphoreInfo));
+        renderFinishedSemaphore.push_back(device.createSemaphore(semaphoreInfo));
+        inFlightFences.push_back(device.createFence(fenceInfo));
+    }
 }
 
 std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)

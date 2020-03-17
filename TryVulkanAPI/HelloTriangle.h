@@ -50,11 +50,14 @@ private:
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
 
-    vk::Semaphore imageAvailableSemaphore;
-    vk::Semaphore renderFinishedSemaphore;
+    std::vector<vk::Semaphore> imageAvailableSemaphore;
+    std::vector<vk::Semaphore> renderFinishedSemaphore;
+    std::vector<vk::Fence> inFlightFences;
 
     uint32_t width = 800;
     uint32_t height = 600;
+    constexpr static int MAX_FRAMES_IN_FLIGHT = 2;
+    uint32_t currentFrame = 0;
 
     std::vector<const char*> physicalDeviceExtensions{ VK_KHR_SWAPCHAIN_EXTENSION_NAME };
     std::vector<const char*> validationLayers{ "VK_LAYER_KHRONOS_validation" };
@@ -84,7 +87,7 @@ private:
     void createCommandPool();
     void createCommandBuffers();
     void drawFrame();
-    void createSemaphores();
+    void createSyncObjects();
 
     static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
