@@ -29,6 +29,7 @@ void HelloTriangleApplication::initVulkan()
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
+    createVertexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -45,6 +46,8 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    device.destroyBuffer(vertexBuffer);
+    device.freeMemory(vertexBufferMemory);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
         device.destroySemaphore(imageAvailableSemaphore[i]);
@@ -381,8 +384,9 @@ void HelloTriangleApplication::createCommandBuffers()
         vk::RenderPassBeginInfo renderPassInfo(renderPass, swapChainFrameBuffers[i], { {0,0},swapChainExtent }, 1, &clearColor);
         commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
+        commandBuffers[i].bindVertexBuffers(0, { vertexBuffer }, { 0 });
         commandBuffers[i].setViewport(0, { {0.0f,0.0f,static_cast<float>(width),static_cast<float>(height),0.0f,1.0f} });
-        commandBuffers[i].draw(3, 1, 0, 0);
+        commandBuffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
@@ -390,7 +394,7 @@ void HelloTriangleApplication::createCommandBuffers()
 
 void HelloTriangleApplication::drawFrame()
 {
-    device.waitForFences({ inFlightFences[currentFrame] },VK_TRUE,0xFFFFFFFF);
+    device.waitForFences({ inFlightFences[currentFrame] }, VK_TRUE, 0xFFFFFFFF);
     device.resetFences({ inFlightFences[currentFrame] });
 
     auto imageIndex = device.acquireNextImageKHR(swapChain, 0xFFFFFFFF, imageAvailableSemaphore[currentFrame], {});
@@ -398,7 +402,7 @@ void HelloTriangleApplication::drawFrame()
     vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore[currentFrame], &waitStageMask, 1, &commandBuffers[imageIndex.value], 1, &renderFinishedSemaphore[currentFrame]);
     graphicsQueue.submit({ submitInfo }, inFlightFences[currentFrame]);
 
-    vk::PresentInfoKHR presentInfo(1,&renderFinishedSemaphore[currentFrame],1,&swapChain,&imageIndex.value,nullptr);
+    vk::PresentInfoKHR presentInfo(1, &renderFinishedSemaphore[currentFrame], 1, &swapChain, &imageIndex.value, nullptr);
     presentQueue.presentKHR(presentInfo);
     currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
@@ -413,6 +417,24 @@ void HelloTriangleApplication::createSyncObjects()
         renderFinishedSemaphore.push_back(device.createSemaphore(semaphoreInfo));
         inFlightFences.push_back(device.createFence(fenceInfo));
     }
+}
+
+void HelloTriangleApplication::createVertexBuffer()
+{
+    vk::BufferCreateInfo bufferInfo{
+        {},sizeof(Vertex) * vertices.size(),vk::BufferUsageFlagBits::eVertexBuffer,vk::SharingMode::eExclusive };
+    vertexBuffer = device.createBuffer(bufferInfo);
+
+    vk::MemoryRequirements memoryRequirements = device.getBufferMemoryRequirements(vertexBuffer);
+    vk::MemoryAllocateInfo allocInfo(memoryRequirements.size,
+        findMemoryType(memoryRequirements.memoryTypeBits,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+    vertexBufferMemory = device.allocateMemory(allocInfo);
+    device.bindBufferMemory(vertexBuffer, vertexBufferMemory, 0);
+
+    void* data = device.mapMemory(vertexBufferMemory, 0, bufferInfo.size);
+    memcpy(data, vertices.data(), bufferInfo.size);
+    device.unmapMemory(vertexBufferMemory);
 }
 
 std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)
@@ -547,6 +569,18 @@ HelloTriangleApplication::QueueFamilyIndices HelloTriangleApplication::findQueue
     std::cout << "queue count :" << queueFamilies[graphicsFamily].queueCount << '\n';
 
     return { graphicsFamily,presentFamily };
+}
+
+uint32_t HelloTriangleApplication::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+{
+    auto memoryProperties = physicalDevice.getMemoryProperties();
+    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; i++)
+    {
+        if ((typeFilter & (1 << i)) && ((memoryProperties.memoryTypes[i].propertyFlags & properties) == properties))
+        {
+            return i;
+        }
+    }
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(

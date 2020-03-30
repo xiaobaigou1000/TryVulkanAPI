@@ -25,8 +25,8 @@ protected:
         static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
         {
             return std::array<vk::VertexInputAttributeDescription, 2>{
-                vk::VertexInputAttributeDescription{0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position)},
-                vk::VertexInputAttributeDescription{0,1,vk::Format::eR32G32B32Sfloat,offsetof(Vertex,color)}
+                vk::VertexInputAttributeDescription{ 0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position) },
+                    vk::VertexInputAttributeDescription{ 1,0,vk::Format::eR32G32B32Sfloat,offsetof(Vertex,color) }
             };
         }
     };
@@ -47,7 +47,7 @@ public:
     void run();
 private:
     constexpr static std::array<Vertex, 3> vertices = {
-    Vertex{glm::vec2{ 0.0f,-0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}},
+    Vertex{glm::vec2{ 0.0f,-0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}},
     Vertex{glm::vec2{ 0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
     Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}}
     };
@@ -63,6 +63,9 @@ private:
     vk::RenderPass renderPass;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline graphicsPipeline;
+
+    vk::Buffer vertexBuffer;
+    vk::DeviceMemory vertexBufferMemory;
 
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
@@ -113,6 +116,7 @@ private:
     void createCommandBuffers();
     void drawFrame();
     void createSyncObjects();
+    void createVertexBuffer();
 
     static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
@@ -123,6 +127,7 @@ private:
     vk::DebugUtilsMessengerCreateInfoEXT getDebugMessengerCreateInfo();
     std::vector<const char*> getRequiredExtensions();
     QueueFamilyIndices findQueueFamilies();
+    uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
     static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
         VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity,
