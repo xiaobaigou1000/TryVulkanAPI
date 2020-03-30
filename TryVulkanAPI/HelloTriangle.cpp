@@ -303,8 +303,8 @@ void HelloTriangleApplication::createRenderPass()
 
 void HelloTriangleApplication::createGraphicsPipeline()
 {
-    auto vertexShaderCode = readShaderCode("./shaders/simpleTriangleVert.spv");
-    auto fragmentShaderCode = readShaderCode("./shaders/simpleTriangleFrag.spv");
+    auto vertexShaderCode = readShaderCode("./shaders/triangleWithAttribVert.spv");
+    auto fragmentShaderCode = readShaderCode("./shaders/triangleWithAttribFrag.spv");
     vk::ShaderModule vertexShaderModule = createShaderModule(vertexShaderCode);
     vk::ShaderModule fragmentShaderModule = createShaderModule(fragmentShaderCode);
 
@@ -312,7 +312,10 @@ void HelloTriangleApplication::createGraphicsPipeline()
     vk::PipelineShaderStageCreateInfo fragmentShaderStageCreateInfo({}, vk::ShaderStageFlagBits::eFragment, fragmentShaderModule, "main");
     vk::PipelineShaderStageCreateInfo shaderStageCreateInfos[] = { vertexShaderStageCreateInfo,fragmentShaderStageCreateInfo };
 
-    vk::PipelineVertexInputStateCreateInfo vertexInputInfo({}, 0, nullptr, 0, nullptr);
+    auto bindingDescription = Vertex::getBindingDescription();
+    auto attributeDescription = Vertex::getAttributeDescriptions();
+
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo({}, 1, &bindingDescription, 2, attributeDescription.data());
     vk::PipelineInputAssemblyStateCreateInfo inputAssembly({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
     vk::Viewport viewport(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height), 0.0f, 1.0f);
     vk::Rect2D scissor({ 0,0 }, swapChainExtent);
