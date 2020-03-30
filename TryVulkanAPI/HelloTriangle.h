@@ -11,9 +11,26 @@
 
 class HelloTriangleApplication
 {
-public:
-    void run();
-private:
+protected:
+    struct Vertex
+    {
+        glm::vec2 position;
+        glm::vec3 color;
+
+        static vk::VertexInputBindingDescription getBindingDescription()
+        {
+            return vk::VertexInputBindingDescription{ 0,sizeof(Vertex),vk::VertexInputRate::eVertex };
+        }
+
+        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescriptions()
+        {
+            return std::array<vk::VertexInputAttributeDescription, 2>{
+                vk::VertexInputAttributeDescription{0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position)},
+                vk::VertexInputAttributeDescription{0,1,vk::Format::eR32G32B32Sfloat,offsetof(Vertex,color)}
+            };
+        }
+    };
+
     struct QueueFamilyIndices
     {
         uint32_t graphicsFamily;
@@ -25,6 +42,14 @@ private:
         vk::SurfaceCapabilitiesKHR capabilities;
         std::vector<vk::SurfaceFormatKHR> formats;
         std::vector<vk::PresentModeKHR> presentModes;
+    };
+public:
+    void run();
+private:
+    constexpr static std::array<Vertex, 3> vertices = {
+    Vertex{glm::vec2{ 0.0f,-0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}},
+    Vertex{glm::vec2{ 0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
+    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}}
     };
 
     GLFWwindow* window;
