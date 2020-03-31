@@ -46,10 +46,15 @@ protected:
 public:
     void run();
 private:
-    constexpr static std::array<Vertex, 3> vertices = {
-    Vertex{glm::vec2{ 0.0f,-0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}},
-    Vertex{glm::vec2{ 0.5f, 0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
-    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}}
+    constexpr static std::array<Vertex, 4> vertices = {
+    Vertex{glm::vec2{-0.5f,-0.5f}, glm::vec3{1.0f, 1.0f, 1.0f}},
+    Vertex{glm::vec2{ 0.5f,-0.5f}, glm::vec3{0.0f, 1.0f, 0.0f}},
+    Vertex{glm::vec2{ 0.5f, 0.5f}, glm::vec3{0.0f, 0.0f, 1.0f}},
+    Vertex{glm::vec2{-0.5f, 0.5f}, glm::vec3{1.0f, 0.0f, 0.0f}},
+    };
+
+    constexpr static std::array<uint32_t, 6> indices = {
+        0, 1, 2, 2, 3, 0
     };
 
     GLFWwindow* window;
@@ -66,6 +71,8 @@ private:
 
     vk::Buffer vertexBuffer;
     vk::DeviceMemory vertexBufferMemory;
+    vk::Buffer indexBuffer;
+    vk::DeviceMemory indexBufferMemory;
 
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
@@ -117,6 +124,7 @@ private:
     void drawFrame();
     void createSyncObjects();
     void createVertexBuffer();
+    void createIndexBuffer();
 
     void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
     std::pair<vk::Buffer, vk::DeviceMemory> createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);

@@ -30,6 +30,7 @@ void HelloTriangleApplication::initVulkan()
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
+    createIndexBuffer();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -46,6 +47,8 @@ void HelloTriangleApplication::mainLoop()
 
 void HelloTriangleApplication::cleanup()
 {
+    device.destroyBuffer(indexBuffer);
+    device.freeMemory(indexBufferMemory);
     device.destroyBuffer(vertexBuffer);
     device.freeMemory(vertexBufferMemory);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
@@ -385,8 +388,9 @@ void HelloTriangleApplication::createCommandBuffers()
         commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
         commandBuffers[i].bindVertexBuffers(0, { vertexBuffer }, { 0 });
+        commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
         commandBuffers[i].setViewport(0, { {0.0f,0.0f,static_cast<float>(width),static_cast<float>(height),0.0f,1.0f} });
-        commandBuffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+        commandBuffers[i].drawIndexed(indices.size(), 1, 0, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
@@ -435,6 +439,25 @@ void HelloTriangleApplication::createVertexBuffer()
     vertexBuffer = result.first;
     vertexBufferMemory = result.second;
     copyBuffer(stagingBuffer.first, vertexBuffer, vertexBufferSize);
+    device.destroyBuffer(stagingBuffer.first);
+    device.freeMemory(stagingBuffer.second);
+}
+
+void HelloTriangleApplication::createIndexBuffer()
+{
+    vk::DeviceSize indexBufferSize = sizeof(uint32_t) * indices.size();
+    auto stagingBuffer = createBufferHelpFunc(indexBufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    void* data = device.mapMemory(stagingBuffer.second, 0, indexBufferSize);
+    memcpy(data, indices.data(), indexBufferSize);
+    device.unmapMemory(stagingBuffer.second);
+    auto result = createBufferHelpFunc(indexBufferSize,
+        vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        vk::MemoryPropertyFlagBits::eDeviceLocal);
+    indexBuffer = result.first;
+    indexBufferMemory = result.second;
+    copyBuffer(stagingBuffer.first, indexBuffer, indexBufferSize);
     device.destroyBuffer(stagingBuffer.first);
     device.freeMemory(stagingBuffer.second);
 }
