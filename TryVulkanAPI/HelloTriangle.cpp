@@ -421,20 +421,48 @@ void HelloTriangleApplication::createSyncObjects()
 
 void HelloTriangleApplication::createVertexBuffer()
 {
-    vk::BufferCreateInfo bufferInfo{
-        {},sizeof(Vertex) * vertices.size(),vk::BufferUsageFlagBits::eVertexBuffer,vk::SharingMode::eExclusive };
-    vertexBuffer = device.createBuffer(bufferInfo);
+    vk::DeviceSize vertexBufferSize = sizeof(Vertex) * vertices.size();
+    auto stagingBuffer = createBufferHelpFunc(
+        vertexBufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    void* data = device.mapMemory(stagingBuffer.second, 0, vertexBufferSize);
+    memcpy(data, vertices.data(), vertexBufferSize);
+    device.unmapMemory(stagingBuffer.second);
+    auto result = createBufferHelpFunc(vertexBufferSize,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::MemoryPropertyFlagBits::eDeviceLocal);
+    vertexBuffer = result.first;
+    vertexBufferMemory = result.second;
+    copyBuffer(stagingBuffer.first, vertexBuffer, vertexBufferSize);
+    device.destroyBuffer(stagingBuffer.first);
+    device.freeMemory(stagingBuffer.second);
+}
 
-    vk::MemoryRequirements memoryRequirements = device.getBufferMemoryRequirements(vertexBuffer);
-    vk::MemoryAllocateInfo allocInfo(memoryRequirements.size,
-        findMemoryType(memoryRequirements.memoryTypeBits,
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
-    vertexBufferMemory = device.allocateMemory(allocInfo);
-    device.bindBufferMemory(vertexBuffer, vertexBufferMemory, 0);
+void HelloTriangleApplication::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
+{
+    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::CommandBuffer transferCommandBuffer = device.allocateCommandBuffers(allocInfo)[0];
+    vk::CommandBufferBeginInfo beginInfo{ vk::CommandBufferUsageFlagBits::eOneTimeSubmit };
+    transferCommandBuffer.begin(beginInfo);
+    vk::BufferCopy copyRegion{ 0,0,size };
+    transferCommandBuffer.copyBuffer(src, dst, copyRegion);
+    transferCommandBuffer.end();
+    vk::SubmitInfo subInfo{ 0,nullptr,nullptr,1,&transferCommandBuffer,0,nullptr };
+    graphicsQueue.submit({ subInfo }, {});
+    graphicsQueue.waitIdle();
+    device.freeCommandBuffers(commandPool, { transferCommandBuffer });
+}
 
-    void* data = device.mapMemory(vertexBufferMemory, 0, bufferInfo.size);
-    memcpy(data, vertices.data(), bufferInfo.size);
-    device.unmapMemory(vertexBufferMemory);
+std::pair<vk::Buffer, vk::DeviceMemory> HelloTriangleApplication::createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
+{
+    vk::BufferCreateInfo bufferInfo({}, size, usage, vk::SharingMode::eExclusive);
+    vk::Buffer buffer = device.createBuffer(bufferInfo);
+    vk::MemoryRequirements memoryRequirements = device.getBufferMemoryRequirements(buffer);
+    vk::MemoryAllocateInfo allocInfo(memoryRequirements.size, findMemoryType(memoryRequirements.memoryTypeBits, properties));
+    vk::DeviceMemory deviceMemory = device.allocateMemory(allocInfo);
+    device.bindBufferMemory(buffer, deviceMemory, 0);
+    return { buffer,deviceMemory };
 }
 
 std::vector<char> HelloTriangleApplication::readShaderCode(const std::string& fileName)

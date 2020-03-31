@@ -118,6 +118,8 @@ private:
     void createSyncObjects();
     void createVertexBuffer();
 
+    void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
+    std::pair<vk::Buffer, vk::DeviceMemory> createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
     static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
