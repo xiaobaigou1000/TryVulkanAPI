@@ -1,6 +1,6 @@
 #include "VulkanContext.h"
 #include<iostream>
-#include<vulkan/vulkan.h>
+#include<algorithm>
 
 VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
     VkDebugUtilsMessageSeverityFlagBitsEXT           messageSeverity,
@@ -14,7 +14,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 void VulkanContext::destroy()
 {
-    auto debugMessengerDestroyFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    auto debugMessengerDestroyFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT");
     if (debugMessengerDestroyFunc != nullptr)
     {
         debugMessengerDestroyFunc(instance, debugMessenger, nullptr);
@@ -37,6 +37,13 @@ void VulkanContext::fillDebugMessengerCreateInfo()
     PFN_vkDebugUtilsMessengerCallbackEXT pfnUserCallback = debugCallback;
 
     debugMessengerCreateInfo = vk::DebugUtilsMessengerCreateInfoEXT({}, severity, messageType, debugCallback);
+}
+
+void VulkanContext::init(const NativeWindow& window)
+{
+    createInstance(window);
+    setupDebugMessenger();
+    selectPhysicalDevice();
 }
 
 void VulkanContext::createInstance(const NativeWindow& window)
@@ -65,7 +72,7 @@ void VulkanContext::setupDebugMessenger()
         return;
     }
 
-    auto debugCreateFunc = (PFN_vkCreateDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkCreateDebugUtilsMessengerEXT");
+    auto debugCreateFunc = (PFN_vkCreateDebugUtilsMessengerEXT)instance.getProcAddr("vkCreateDebugUtilsMessengerEXT");
     if (debugCreateFunc != nullptr)
     {
         VkResult result = debugCreateFunc(instance, reinterpret_cast<VkDebugUtilsMessengerCreateInfoEXT*>(&debugMessengerCreateInfo), nullptr, reinterpret_cast<VkDebugUtilsMessengerEXT*>(&debugMessenger));
@@ -77,5 +84,19 @@ void VulkanContext::setupDebugMessenger()
     else
     {
         throw std::runtime_error("can't find vkCreateDebugUtilsMessengerEXT function.");
+    }
+}
+
+void VulkanContext::selectPhysicalDevice()
+{
+    auto physicalDevices = instance.enumeratePhysicalDevices();
+    for (const auto& i : physicalDevices)
+    {
+        auto features = i.getFeatures();
+        auto properties = i.getProperties();
+        if (properties.deviceType == vk::PhysicalDeviceType::eDiscreteGpu && features.geometryShader)
+        {
+            physicalDevice = i;
+        }
     }
 }

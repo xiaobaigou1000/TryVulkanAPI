@@ -4,12 +4,15 @@
 class VulkanContext
 {
 public:
+    void init(const NativeWindow& window);
     void createInstance(const NativeWindow& window);
     void setupDebugMessenger();
+    void selectPhysicalDevice();
     void destroy();
 
 private:
     vk::Instance instance;
+    vk::PhysicalDevice physicalDevice;
     vk::DebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo;
     vk::DebugUtilsMessengerEXT debugMessenger;
 

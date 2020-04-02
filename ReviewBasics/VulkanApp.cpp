@@ -8,8 +8,7 @@ void VulkanApp::run()
 void VulkanApp::init()
 {
     window.init();
-    context.createInstance(window);
-    context.setupDebugMessenger();
+    context.init(window);
 }
 
 void VulkanApp::cleanup()
