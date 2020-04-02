@@ -26,11 +26,15 @@ void HelloTriangleApplication::initVulkan()
     createSwapChain();
     createImageViews();
     createRenderPass();
+    createDescriptionSetLayout();
     createGraphicsPipeline();
     createFrameBuffers();
     createCommandPool();
     createVertexBuffer();
     createIndexBuffer();
+    createUniformBuffers();
+    createDescriptorPool();
+    createDescriptorSets();
     createCommandBuffers();
     createSyncObjects();
 }
@@ -53,10 +57,14 @@ void HelloTriangleApplication::cleanup()
     device.freeMemory(vertexBufferMemory);
     for (uint32_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++)
     {
+        device.destroyBuffer(uniformBuffers[i]);
+        device.freeMemory(uniformBuffersMemory[i]);
         device.destroySemaphore(imageAvailableSemaphore[i]);
         device.destroySemaphore(renderFinishedSemaphore[i]);
         device.destroyFence(inFlightFences[i]);
     }
+
+    device.destroyDescriptorPool(descriptorPool);
 
     device.destroyCommandPool(commandPool);
     for (const auto& i : swapChainFrameBuffers)
@@ -71,6 +79,7 @@ void HelloTriangleApplication::cleanup()
         device.destroyImageView(i);
     }
     device.destroySwapchainKHR(swapChain);
+    device.destroyDescriptorSetLayout(descriptorSetLayout);
     device.destroy();
     auto debugMessengerDestroyFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (debugMessengerDestroyFunc != nullptr)
@@ -328,7 +337,7 @@ void HelloTriangleApplication::createGraphicsPipeline()
     vk::PipelineViewportStateCreateInfo viewportState({}, 1, &viewport, 1, &scissor);
     vk::PipelineRasterizationStateCreateInfo rasterizer(
         {}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack,
-        vk::FrontFace::eClockwise, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f);
+        vk::FrontFace::eCounterClockwise, VK_FALSE, 0.0f, 0.0f, 0.0f, 1.0f);
     vk::PipelineMultisampleStateCreateInfo multisampling({}, vk::SampleCountFlagBits::e1, VK_FALSE, 1.0f, nullptr, VK_FALSE, VK_FALSE);
     vk::PipelineColorBlendAttachmentState colorBlendAttachment(
         VK_FALSE, vk::BlendFactor::eOne, vk::BlendFactor::eZero,
@@ -341,7 +350,7 @@ void HelloTriangleApplication::createGraphicsPipeline()
         vk::DynamicState::eLineWidth
     };
     vk::PipelineDynamicStateCreateInfo dynamicState({}, 2, dynamicStates);
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 0, nullptr);
     pipelineLayout = device.createPipelineLayout(pipelineLayoutInfo);
     vk::GraphicsPipelineCreateInfo createInfo(
         {}, 2, shaderStageCreateInfos,
@@ -388,6 +397,7 @@ void HelloTriangleApplication::createCommandBuffers()
         commandBuffers[i].beginRenderPass(renderPassInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, graphicsPipeline);
         commandBuffers[i].bindVertexBuffers(0, { vertexBuffer }, { 0 });
+        commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, { descriptorSets[i] }, {});
         commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
         commandBuffers[i].setViewport(0, { {0.0f,0.0f,static_cast<float>(width),static_cast<float>(height),0.0f,1.0f} });
         commandBuffers[i].drawIndexed(indices.size(), 1, 0, 0, 0);
@@ -402,6 +412,7 @@ void HelloTriangleApplication::drawFrame()
     device.resetFences({ inFlightFences[currentFrame] });
 
     auto imageIndex = device.acquireNextImageKHR(swapChain, 0xFFFFFFFF, imageAvailableSemaphore[currentFrame], {});
+    updateUniformBuffer(imageIndex.value);
     vk::PipelineStageFlags waitStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore[currentFrame], &waitStageMask, 1, &commandBuffers[imageIndex.value], 1, &renderFinishedSemaphore[currentFrame]);
     graphicsQueue.submit({ submitInfo }, inFlightFences[currentFrame]);
@@ -426,40 +437,97 @@ void HelloTriangleApplication::createSyncObjects()
 void HelloTriangleApplication::createVertexBuffer()
 {
     vk::DeviceSize vertexBufferSize = sizeof(Vertex) * vertices.size();
-    auto stagingBuffer = createBufferHelpFunc(
+    vk::Buffer stagingBuffer;
+    vk::DeviceMemory stagingBufferMemory;
+    std::tie(stagingBuffer, stagingBufferMemory) = createBufferHelpFunc(
         vertexBufferSize,
         vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-    void* data = device.mapMemory(stagingBuffer.second, 0, vertexBufferSize);
+    void* data = device.mapMemory(stagingBufferMemory, 0, vertexBufferSize);
     memcpy(data, vertices.data(), vertexBufferSize);
-    device.unmapMemory(stagingBuffer.second);
-    auto result = createBufferHelpFunc(vertexBufferSize,
+    device.unmapMemory(stagingBufferMemory);
+    std::tie(vertexBuffer, vertexBufferMemory) = createBufferHelpFunc(vertexBufferSize,
         vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
         vk::MemoryPropertyFlagBits::eDeviceLocal);
-    vertexBuffer = result.first;
-    vertexBufferMemory = result.second;
-    copyBuffer(stagingBuffer.first, vertexBuffer, vertexBufferSize);
-    device.destroyBuffer(stagingBuffer.first);
-    device.freeMemory(stagingBuffer.second);
+    copyBuffer(stagingBuffer, vertexBuffer, vertexBufferSize);
+    device.destroyBuffer(stagingBuffer);
+    device.freeMemory(stagingBufferMemory);
 }
 
 void HelloTriangleApplication::createIndexBuffer()
 {
     vk::DeviceSize indexBufferSize = sizeof(uint32_t) * indices.size();
-    auto stagingBuffer = createBufferHelpFunc(indexBufferSize,
+    vk::Buffer stagingBuffer;
+    vk::DeviceMemory stagingBufferMemory;
+    std::tie(stagingBuffer, stagingBufferMemory) = createBufferHelpFunc(indexBufferSize,
         vk::BufferUsageFlagBits::eTransferSrc,
         vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-    void* data = device.mapMemory(stagingBuffer.second, 0, indexBufferSize);
+    void* data = device.mapMemory(stagingBufferMemory, 0, indexBufferSize);
     memcpy(data, indices.data(), indexBufferSize);
-    device.unmapMemory(stagingBuffer.second);
-    auto result = createBufferHelpFunc(indexBufferSize,
+    device.unmapMemory(stagingBufferMemory);
+    std::tie(indexBuffer, indexBufferMemory) = createBufferHelpFunc(indexBufferSize,
         vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
         vk::MemoryPropertyFlagBits::eDeviceLocal);
-    indexBuffer = result.first;
-    indexBufferMemory = result.second;
-    copyBuffer(stagingBuffer.first, indexBuffer, indexBufferSize);
-    device.destroyBuffer(stagingBuffer.first);
-    device.freeMemory(stagingBuffer.second);
+    copyBuffer(stagingBuffer, indexBuffer, indexBufferSize);
+    device.destroyBuffer(stagingBuffer);
+    device.freeMemory(stagingBufferMemory);
+}
+
+void HelloTriangleApplication::createDescriptionSetLayout()
+{
+    vk::DescriptorSetLayoutBinding uboLayoutBinding(0, vk::DescriptorType::eUniformBuffer, 1, vk::ShaderStageFlagBits::eVertex, nullptr);
+    vk::DescriptorSetLayoutCreateInfo layoutInfo({}, 1, &uboLayoutBinding);
+    descriptorSetLayout = device.createDescriptorSetLayout(layoutInfo);
+}
+
+void HelloTriangleApplication::createUniformBuffers()
+{
+    vk::DeviceSize bufferSize = sizeof(UniformBufferObject);
+    uniformBuffers.resize(swapChainImages.size());
+    uniformBuffersMemory.resize(swapChainImages.size());
+
+    for (size_t i = 0; i < swapChainImages.size(); i++)
+    {
+        std::tie(uniformBuffers[i], uniformBuffersMemory[i]) = createBufferHelpFunc(
+            bufferSize, vk::BufferUsageFlagBits::eUniformBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    }
+}
+
+void HelloTriangleApplication::createDescriptorPool()
+{
+    vk::DescriptorPoolSize poolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
+    vk::DescriptorPoolCreateInfo poolInfo({}, static_cast<uint32_t>(swapChainImages.size()), 1, &poolSize);
+    descriptorPool = device.createDescriptorPool(poolInfo);
+}
+
+void HelloTriangleApplication::createDescriptorSets()
+{
+    std::vector<vk::DescriptorSetLayout> layouts(swapChainImages.size(), descriptorSetLayout);
+    vk::DescriptorSetAllocateInfo allocInfo(descriptorPool, static_cast<uint32_t>(swapChainImages.size()), layouts.data());
+    descriptorSets = device.allocateDescriptorSets(allocInfo);
+    for (size_t i = 0; i < swapChainImages.size(); i++)
+    {
+        vk::DescriptorBufferInfo bufferInfo{ uniformBuffers[i],0,sizeof(UniformBufferObject) };
+        vk::WriteDescriptorSet descriptorWrite{ descriptorSets[i],0,0,1,vk::DescriptorType::eUniformBuffer,nullptr,&bufferInfo,nullptr };
+        device.updateDescriptorSets({ descriptorWrite }, {});
+    }
+}
+
+void HelloTriangleApplication::updateUniformBuffer(uint32_t currentImage)
+{
+    static auto startTime = std::chrono::high_resolution_clock::now();
+    auto currentTime = std::chrono::high_resolution_clock::now();
+    float timePassed = std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(currentTime - startTime).count();
+    UniformBufferObject ubo{
+        glm::rotate(glm::mat4(1.0f),timePassed * glm::radians(90.0f),glm::vec3(0.0f,0.0f,1.0f)),
+        glm::lookAt(glm::vec3(2.0f,2.0f,2.0f),glm::vec3(0.0f,0.0f,0.0f),glm::vec3(0.0f,0.0f,1.0f)),
+        glm::perspective(glm::radians(45.0f),swapChainExtent.width / (float)swapChainExtent.height,0.1f,10.0f)
+    };
+    ubo.proj[1][1] *= -1.0f;
+    void* data = device.mapMemory(uniformBuffersMemory[currentImage], 0, sizeof(UniformBufferObject));
+    memcpy(data, &ubo, sizeof(UniformBufferObject));
+    device.unmapMemory(uniformBuffersMemory[currentImage]);
 }
 
 void HelloTriangleApplication::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
@@ -477,7 +545,7 @@ void HelloTriangleApplication::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::De
     device.freeCommandBuffers(commandPool, { transferCommandBuffer });
 }
 
-std::pair<vk::Buffer, vk::DeviceMemory> HelloTriangleApplication::createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
+std::tuple<vk::Buffer, vk::DeviceMemory> HelloTriangleApplication::createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
 {
     vk::BufferCreateInfo bufferInfo({}, size, usage, vk::SharingMode::eExclusive);
     vk::Buffer buffer = device.createBuffer(bufferInfo);

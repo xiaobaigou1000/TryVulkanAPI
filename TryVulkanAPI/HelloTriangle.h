@@ -3,15 +3,24 @@
 #include<GLFW/glfw3.h>
 #include<vulkan/vulkan.hpp>
 #include<glm.hpp>
+#include<gtc/matrix_transform.hpp>
 #include<iostream>
 #include<vector>
 #include<functional>
 #include<array>
 #include<fstream>
+#include<chrono>
 
 class HelloTriangleApplication
 {
 protected:
+    struct UniformBufferObject
+    {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 proj;
+    };
+
     struct Vertex
     {
         glm::vec2 position;
@@ -66,6 +75,7 @@ private:
     vk::Queue graphicsQueue;
     vk::Queue presentQueue;
     vk::RenderPass renderPass;
+    vk::DescriptorSetLayout descriptorSetLayout;
     vk::PipelineLayout pipelineLayout;
     vk::Pipeline graphicsPipeline;
 
@@ -73,6 +83,12 @@ private:
     vk::DeviceMemory vertexBufferMemory;
     vk::Buffer indexBuffer;
     vk::DeviceMemory indexBufferMemory;
+
+    std::vector<vk::Buffer> uniformBuffers;
+    std::vector<vk::DeviceMemory> uniformBuffersMemory;
+
+    vk::DescriptorPool descriptorPool;
+    std::vector<vk::DescriptorSet> descriptorSets;
 
     vk::SurfaceKHR surface;
     vk::SwapchainKHR swapChain;
@@ -125,9 +141,14 @@ private:
     void createSyncObjects();
     void createVertexBuffer();
     void createIndexBuffer();
+    void createDescriptionSetLayout();
+    void createUniformBuffers();
+    void createDescriptorPool();
+    void createDescriptorSets();
 
+    void updateUniformBuffer(uint32_t currentImage);
     void copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size);
-    std::pair<vk::Buffer, vk::DeviceMemory> createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
+    std::tuple<vk::Buffer, vk::DeviceMemory> createBufferHelpFunc(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties);
     static std::vector<char> readShaderCode(const std::string& fileName);
     static vk::SurfaceFormatKHR chooseSurfaceFormat(const std::vector<vk::SurfaceFormatKHR>& availableFormats);
     static vk::PresentModeKHR chooseSwapPresentMode(const std::vector<vk::PresentModeKHR>& availablePresentModes);
