@@ -125,12 +125,11 @@ void VulkanContext::selectQueueFamily()
     }
 }
 
-vk::Device VulkanContext::createLogicalDevice()
+vk::Device VulkanContext::createLogicalDevice(const std::vector<const char*>& deviceExtensions,vk::PhysicalDeviceFeatures physicalDeviceFeatures)
 {
     float queuePriority = 1.0f;
     vk::DeviceQueueCreateInfo queueCreateInfo({}, queueFamilyIndex, 1, &queuePriority);
-    vk::PhysicalDeviceFeatures physicalDeviceFeatures;
-    vk::DeviceCreateInfo createInfo({}, 1, &queueCreateInfo, 0, nullptr, 0, nullptr, &physicalDeviceFeatures);
+    vk::DeviceCreateInfo createInfo({}, 1, &queueCreateInfo, 0, nullptr, deviceExtensions.size(), deviceExtensions.data(), &physicalDeviceFeatures);
     vk::Device device = physicalDevice.createDevice(createInfo);
     return device;
 }
