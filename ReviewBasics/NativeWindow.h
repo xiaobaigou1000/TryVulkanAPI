@@ -9,9 +9,9 @@ class NativeWindow
 public:
     void init();
     void destroy();
-    bool shouldClose()const;
-    void pollEvents()const;
-    GLFWwindow* handle()const;
+    inline bool shouldClose()const { return glfwWindowShouldClose(window); };
+    inline void pollEvents()const { glfwPollEvents(); };
+    inline GLFWwindow* handle()const { return window; };
 
     std::vector<const char*> extensionRequirements()const;
 private:

@@ -14,21 +14,6 @@ void NativeWindow::destroy()
     glfwTerminate();
 }
 
-bool NativeWindow::shouldClose()const
-{
-    return glfwWindowShouldClose(window);
-}
-
-void NativeWindow::pollEvents()const
-{
-    glfwPollEvents();
-}
-
-GLFWwindow* NativeWindow::handle()const
-{
-    return window;
-}
-
 std::vector<const char*> NativeWindow::extensionRequirements()const
 {
     uint32_t glfwExtensionCount;

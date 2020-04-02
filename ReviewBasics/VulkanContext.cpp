@@ -125,6 +125,16 @@ void VulkanContext::selectQueueFamily()
     }
 }
 
+vk::Device VulkanContext::createLogicalDevice()
+{
+    float queuePriority = 1.0f;
+    vk::DeviceQueueCreateInfo queueCreateInfo({}, queueFamilyIndex, 1, &queuePriority);
+    vk::PhysicalDeviceFeatures physicalDeviceFeatures;
+    vk::DeviceCreateInfo createInfo({}, 1, &queueCreateInfo, 0, nullptr, 0, nullptr, &physicalDeviceFeatures);
+    vk::Device device = physicalDevice.createDevice(createInfo);
+    return device;
+}
+
 void VulkanContext::createWindowSurface(const NativeWindow& window)
 {
     glfwCreateWindowSurface(instance, window.handle(), nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));

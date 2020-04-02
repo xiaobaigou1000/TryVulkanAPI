@@ -12,6 +12,8 @@ public:
 private:
     NativeWindow window;
     VulkanContext context;
+    vk::Device device;
+    vk::Queue graphicsQueue;//be able to present image
 
     void mainLoop();
 };

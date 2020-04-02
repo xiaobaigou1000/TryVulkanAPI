@@ -9,6 +9,8 @@ public:
     void setupDebugMessenger();
     void selectPhysicalDevice();
     void selectQueueFamily();
+    inline uint32_t getQueueFamilyIndex() { return queueFamilyIndex; };
+    vk::Device createLogicalDevice();
     void createWindowSurface(const NativeWindow& window);
     void destroy();
 
