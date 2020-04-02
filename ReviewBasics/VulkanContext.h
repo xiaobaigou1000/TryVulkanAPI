@@ -8,13 +8,17 @@ public:
     void createInstance(const NativeWindow& window);
     void setupDebugMessenger();
     void selectPhysicalDevice();
+    void selectQueueFamily();
+    void createWindowSurface(const NativeWindow& window);
     void destroy();
 
 private:
     vk::Instance instance;
     vk::PhysicalDevice physicalDevice;
+    uint32_t queueFamilyIndex = -1;
     vk::DebugUtilsMessengerCreateInfoEXT debugMessengerCreateInfo;
     vk::DebugUtilsMessengerEXT debugMessenger;
+    vk::SurfaceKHR surface;
 
     void fillDebugMessengerCreateInfo();
 

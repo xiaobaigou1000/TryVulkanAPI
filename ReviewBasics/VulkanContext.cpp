@@ -14,6 +14,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(
 
 void VulkanContext::destroy()
 {
+    instance.destroySurfaceKHR(surface);
     auto debugMessengerDestroyFunc = (PFN_vkDestroyDebugUtilsMessengerEXT)instance.getProcAddr("vkDestroyDebugUtilsMessengerEXT");
     if (debugMessengerDestroyFunc != nullptr)
     {
@@ -43,7 +44,9 @@ void VulkanContext::init(const NativeWindow& window)
 {
     createInstance(window);
     setupDebugMessenger();
+    createWindowSurface(window);
     selectPhysicalDevice();
+    selectQueueFamily();
 }
 
 void VulkanContext::createInstance(const NativeWindow& window)
@@ -99,4 +102,30 @@ void VulkanContext::selectPhysicalDevice()
             physicalDevice = i;
         }
     }
+}
+
+void VulkanContext::selectQueueFamily()
+{
+    auto queueFamilyProperties = physicalDevice.getQueueFamilyProperties();
+    uint32_t index = 0;
+    for (const auto& i : queueFamilyProperties)
+    {
+        if (i.queueFlags | vk::QueueFlagBits::eGraphics | vk::QueueFlagBits::eCompute | vk::QueueFlagBits::eTransfer)
+        {
+            if (physicalDevice.getSurfaceSupportKHR(index, surface))
+            {
+                queueFamilyIndex = index;
+            }
+        }
+        ++index;
+    }
+    if (queueFamilyIndex == -1)
+    {
+        throw std::runtime_error("physical device has no queue family suitable");
+    }
+}
+
+void VulkanContext::createWindowSurface(const NativeWindow& window)
+{
+    glfwCreateWindowSurface(instance, window.handle(), nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
 }
