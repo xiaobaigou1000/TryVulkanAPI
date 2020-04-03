@@ -115,6 +115,7 @@ void VulkanContext::selectQueueFamily()
             if (physicalDevice.getSurfaceSupportKHR(index, surface))
             {
                 queueFamilyIndex = index;
+                break;
             }
         }
         ++index;
