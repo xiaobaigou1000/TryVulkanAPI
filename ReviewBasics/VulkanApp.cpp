@@ -11,10 +11,12 @@ void VulkanApp::init()
     context.init(window);
     device = context.createLogicalDevice({VK_KHR_SWAPCHAIN_EXTENSION_NAME}, {});
     graphicsQueue = device.getQueue(context.getQueueFamilyIndex(), 0);
+    swapChain.init(context, device, window.extent());
 }
 
 void VulkanApp::cleanup()
 {
+    swapChain.destroy();
     device.destroy();
     context.destroy();
     window.destroy();

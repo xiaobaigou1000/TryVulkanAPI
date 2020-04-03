@@ -4,15 +4,21 @@
 class VulkanContext
 {
 public:
-    void init(const NativeWindow window);
-    void createInstance(const NativeWindow window);
+    VulkanContext() {}
+    VulkanContext(const VulkanContext&) = delete;
+    VulkanContext(VulkanContext&&) = delete;
+    VulkanContext& operator=(const VulkanContext&) = delete;
+
+    void init(const NativeWindow& window);
+    void createInstance(const NativeWindow& window);
     void setupDebugMessenger();
     void selectPhysicalDevice();
     void selectQueueFamily();
-    inline uint32_t getQueueFamilyIndex()const { return queueFamilyIndex; }
-    inline vk::PhysicalDevice getPhysicalDeviceHandle()const { return physicalDevice; }
+    inline const uint32_t getQueueFamilyIndex()const { return queueFamilyIndex; }
+    inline const vk::PhysicalDevice getPhysicalDeviceHandle()const { return physicalDevice; }
+    inline const vk::SurfaceKHR getSurface()const { return surface; }
     vk::Device createLogicalDevice(const std::vector<const char*>& deviceExtensions, vk::PhysicalDeviceFeatures physicalDeviceFeatures);
-    void createWindowSurface(const NativeWindow window);
+    void createWindowSurface(const NativeWindow& window);
     void destroy();
 
 private:

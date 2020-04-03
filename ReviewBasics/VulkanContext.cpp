@@ -40,7 +40,7 @@ void VulkanContext::fillDebugMessengerCreateInfo()
     debugMessengerCreateInfo = vk::DebugUtilsMessengerCreateInfoEXT({}, severity, messageType, debugCallback);
 }
 
-void VulkanContext::init(const NativeWindow window)
+void VulkanContext::init(const NativeWindow& window)
 {
     createInstance(window);
     setupDebugMessenger();
@@ -49,7 +49,7 @@ void VulkanContext::init(const NativeWindow window)
     selectQueueFamily();
 }
 
-void VulkanContext::createInstance(const NativeWindow window)
+void VulkanContext::createInstance(const NativeWindow& window)
 {
     vk::ApplicationInfo appInfo("review", VK_MAKE_VERSION(0, 1, 0), "hello engine", VK_MAKE_VERSION(0, 1, 0), VK_API_VERSION_1_0);
     std::vector<const char*> extensions = window.extensionRequirements();
@@ -59,11 +59,11 @@ void VulkanContext::createInstance(const NativeWindow window)
     if (enableValidationLayers)
     {
         extensions.push_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
-        createInfo.enabledLayerCount = validationLayers.size();
+        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
         createInfo.ppEnabledLayerNames = validationLayers.data();
         createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*)&debugMessengerCreateInfo;
     }
-    createInfo.enabledExtensionCount = extensions.size();
+    createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
     instance = vk::createInstance(createInfo);
 }
@@ -125,16 +125,16 @@ void VulkanContext::selectQueueFamily()
     }
 }
 
-vk::Device VulkanContext::createLogicalDevice(const std::vector<const char*>& deviceExtensions,vk::PhysicalDeviceFeatures physicalDeviceFeatures)
+vk::Device VulkanContext::createLogicalDevice(const std::vector<const char*>& deviceExtensions, vk::PhysicalDeviceFeatures physicalDeviceFeatures)
 {
     float queuePriority = 1.0f;
     vk::DeviceQueueCreateInfo queueCreateInfo({}, queueFamilyIndex, 1, &queuePriority);
-    vk::DeviceCreateInfo createInfo({}, 1, &queueCreateInfo, 0, nullptr, deviceExtensions.size(), deviceExtensions.data(), &physicalDeviceFeatures);
+    vk::DeviceCreateInfo createInfo({}, 1, &queueCreateInfo, 0, nullptr, static_cast<uint32_t>(deviceExtensions.size()), deviceExtensions.data(), &physicalDeviceFeatures);
     vk::Device device = physicalDevice.createDevice(createInfo);
     return device;
 }
 
-void VulkanContext::createWindowSurface(const NativeWindow window)
+void VulkanContext::createWindowSurface(const NativeWindow& window)
 {
     glfwCreateWindowSurface(instance, window.handle(), nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
 }

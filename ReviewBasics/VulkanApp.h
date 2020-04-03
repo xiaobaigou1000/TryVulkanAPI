@@ -1,6 +1,7 @@
 #pragma once
 #include"NativeWindow.h"
 #include"VulkanContext.h"
+#include"EasyUseSwapChain.h"
 
 class VulkanApp
 {
@@ -12,6 +13,8 @@ public:
 private:
     NativeWindow window;
     VulkanContext context;
+    EasyUseSwapChain swapChain;
+
     vk::Device device;
     vk::Queue graphicsQueue;//be able to present image
 
