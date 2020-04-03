@@ -11,8 +11,34 @@ void EasyUseSwapChain::init(const VulkanContext& context,const vk::Device device
     createSwapchain(ideaExtent);
 }
 
+std::tuple<std::vector<vk::Image>, std::vector<vk::ImageView>> EasyUseSwapChain::getSwapChainImages()
+{
+    auto swapChainImages = device.getSwapchainImagesKHR(swapChain);
+    std::vector<vk::ImageView> swapChainImageViews(swapChainImages.size());
+    for (uint32_t i = 0; i < swapChainImages.size(); i++)
+    {
+        vk::ComponentMapping component;
+        component.r = vk::ComponentSwizzle::eIdentity;
+        component.g = vk::ComponentSwizzle::eIdentity;
+        component.b = vk::ComponentSwizzle::eIdentity;
+        component.a = vk::ComponentSwizzle::eIdentity;
+
+        vk::ImageSubresourceRange subresourceRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+
+        vk::ImageViewCreateInfo createInfo(
+            {}, swapChainImages[i], vk::ImageViewType::e2D, surfaceFormat.format, component, subresourceRange);
+        swapChainImageViews[i] = device.createImageView(createInfo);
+    }
+    std::copy(swapChainImageViews.begin(), swapChainImageViews.end(), std::back_inserter(allocatedSwapChainImageViews));
+    return { std::move(swapChainImages),std::move(swapChainImageViews) };
+}
+
 void EasyUseSwapChain::destroy()
 {
+    for (const auto i : allocatedSwapChainImageViews)
+    {
+        device.destroyImageView(i);
+    }
     device.destroySwapchainKHR(swapChain);
 }
 

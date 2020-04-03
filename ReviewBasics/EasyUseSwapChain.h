@@ -14,6 +14,7 @@ public:
     inline vk::Format imageFormat() { return surfaceFormat.format; }
     inline vk::Extent2D extent() { return swapChainExtent; }
     void init(const VulkanContext& context,const vk::Device device, vk::Extent2D ideaExtent);
+    std::tuple<std::vector<vk::Image>, std::vector<vk::ImageView>> getSwapChainImages();
     void destroy();
 private:
     vk::Device device;
@@ -26,6 +27,8 @@ private:
     vk::Extent2D swapChainExtent;
     vk::SwapchainKHR swapChain;
     const VulkanContext* context;
+
+    std::vector<vk::ImageView> allocatedSwapChainImageViews;
 
     void querySwapChainSupportDetails();
     void selectSwapchainBasicInfo();
