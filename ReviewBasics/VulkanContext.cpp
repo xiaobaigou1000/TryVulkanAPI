@@ -40,7 +40,7 @@ void VulkanContext::fillDebugMessengerCreateInfo()
     debugMessengerCreateInfo = vk::DebugUtilsMessengerCreateInfoEXT({}, severity, messageType, debugCallback);
 }
 
-void VulkanContext::init(const NativeWindow& window)
+void VulkanContext::init(const NativeWindow window)
 {
     createInstance(window);
     setupDebugMessenger();
@@ -49,7 +49,7 @@ void VulkanContext::init(const NativeWindow& window)
     selectQueueFamily();
 }
 
-void VulkanContext::createInstance(const NativeWindow& window)
+void VulkanContext::createInstance(const NativeWindow window)
 {
     vk::ApplicationInfo appInfo("review", VK_MAKE_VERSION(0, 1, 0), "hello engine", VK_MAKE_VERSION(0, 1, 0), VK_API_VERSION_1_0);
     std::vector<const char*> extensions = window.extensionRequirements();
@@ -134,7 +134,7 @@ vk::Device VulkanContext::createLogicalDevice(const std::vector<const char*>& de
     return device;
 }
 
-void VulkanContext::createWindowSurface(const NativeWindow& window)
+void VulkanContext::createWindowSurface(const NativeWindow window)
 {
     glfwCreateWindowSurface(instance, window.handle(), nullptr, reinterpret_cast<VkSurfaceKHR*>(&surface));
 }

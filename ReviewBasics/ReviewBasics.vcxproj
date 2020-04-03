@@ -154,12 +154,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="EasyUseSwapChain.cpp" />
     <ClCompile Include="NativeWindow.cpp" />
     <ClCompile Include="Source.cpp" />
     <ClCompile Include="VulkanApp.cpp" />
     <ClCompile Include="VulkanContext.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="EasyUseSwapChain.h" />
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="VulkanApp.h" />
     <ClInclude Include="VulkanContext.h" />

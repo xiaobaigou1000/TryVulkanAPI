@@ -9,7 +9,7 @@ void VulkanApp::init()
 {
     window.init();
     context.init(window);
-    device = context.createLogicalDevice({}, {});
+    device = context.createLogicalDevice({VK_KHR_SWAPCHAIN_EXTENSION_NAME}, {});
     graphicsQueue = device.getQueue(context.getQueueFamilyIndex(), 0);
 }
 
