@@ -11,6 +11,10 @@ public:
     void cleanup();
 
 private:
+    void userInit();
+    void userLoopFunc();
+    void userDestroy();
+
     NativeWindow window;
     VulkanContext context;
     EasyUseSwapChain swapChain;
