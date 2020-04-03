@@ -46,8 +46,7 @@ void EasyUseSwapChain::selectSwapchainBasicInfo()
 
 void EasyUseSwapChain::createSwapchain(vk::Extent2D ideaExtent)
 {
-    vk::Extent2D finalExtent = checkExtent(ideaExtent);
-    swapChainExtent = finalExtent;
+    swapChainExtent = checkExtent(ideaExtent);
     uint32_t imageCount = surfaceCapabilities.minImageCount + 1;
     if (surfaceCapabilities.maxImageCount > 0 && imageCount > surfaceCapabilities.maxImageCount)
     {
@@ -58,7 +57,7 @@ void EasyUseSwapChain::createSwapchain(vk::Extent2D ideaExtent)
     vk::SwapchainCreateInfoKHR createInfo(
         {}, context->getSurface(), imageCount,
         surfaceFormat.format, surfaceFormat.colorSpace,
-        finalExtent, 1, vk::ImageUsageFlagBits::eColorAttachment,
+        swapChainExtent, 1, vk::ImageUsageFlagBits::eColorAttachment,
         vk::SharingMode::eExclusive, 1, &queueFamilyIndex,
         vk::SurfaceTransformFlagBitsKHR::eIdentity, vk::CompositeAlphaFlagBitsKHR::eOpaque, presentMode, VK_TRUE);
     swapChain = device.createSwapchainKHR(createInfo);
