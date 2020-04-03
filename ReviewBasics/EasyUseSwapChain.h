@@ -10,6 +10,7 @@ public:
     EasyUseSwapChain& operator=(const EasyUseSwapChain&) = delete;
     EasyUseSwapChain(EasyUseSwapChain&&) = delete;
 
+    inline vk::SwapchainKHR handle() { return swapChain; }
     void init(const VulkanContext& context,const vk::Device device, vk::Extent2D ideaExtent);
     void destroy();
 private:
