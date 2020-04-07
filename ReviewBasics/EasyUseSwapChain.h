@@ -13,7 +13,7 @@ public:
     inline vk::SwapchainKHR handle() { return swapChain; }
     inline vk::Format imageFormat() { return surfaceFormat.format; }
     inline vk::Extent2D extent() { return swapChainExtent; }
-    void init(const VulkanContext& context,const vk::Device device, vk::Extent2D ideaExtent);
+    void init(const VulkanContext& context, const vk::Device device, vk::Extent2D ideaExtent);
     std::tuple<std::vector<vk::Image>, std::vector<vk::ImageView>> getSwapChainImages();
     void destroy();
 private:

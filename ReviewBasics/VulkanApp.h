@@ -2,6 +2,7 @@
 #include"NativeWindow.h"
 #include"VulkanContext.h"
 #include"EasyUseSwapChain.h"
+#include"SimpleShaderPipeline.h"
 
 class VulkanApp
 {
@@ -20,9 +21,11 @@ private:
     EasyUseSwapChain swapChain;
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> swapChainImageViews;
-
     vk::Device device;
     vk::Queue graphicsQueue;//be able to present image
+
+    //code here
+    SimpleShaderPipeline shader;
 
     void mainLoop();
 };

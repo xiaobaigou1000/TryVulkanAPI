@@ -29,6 +29,11 @@ void VulkanApp::cleanup()
 void VulkanApp::userInit()
 {
     //code here
+    shader.init(device, swapChain.extent());
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo({}, 0, nullptr, 0, nullptr);
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
+    shader.createDefaultVFShader("./shaders/simpleTriangleVert.spv", "./shaders/simpleTriangleFrag.spv", vertexInputInfo, pipelineLayoutInfo);
+
 }
 
 void VulkanApp::userLoopFunc()
@@ -39,6 +44,7 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    shader.destroy();
 }
 
 void VulkanApp::mainLoop()

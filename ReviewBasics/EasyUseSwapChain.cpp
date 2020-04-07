@@ -1,7 +1,7 @@
 #include "EasyUseSwapChain.h"
 #include<algorithm>
 
-void EasyUseSwapChain::init(const VulkanContext& context,const vk::Device device, vk::Extent2D ideaExtent)
+void EasyUseSwapChain::init(const VulkanContext& context, const vk::Device device, vk::Extent2D ideaExtent)
 {
     this->context = &context;
     this->device = device;
