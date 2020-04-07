@@ -1,21 +1,43 @@
 #include "SimpleShaderPipeline.h"
 #include<fstream>
 
-void SimpleShaderPipeline::init(const vk::Device device, const vk::Extent2D windowExtent)
+void SimpleShaderPipeline::init(const vk::Device device, const vk::Extent2D windowExtent, const vk::Format framebufferFormat)
 {
     this->device = device;
+    this->framebufferFormat = framebufferFormat;
 
     vertexInputInfo = vk::PipelineVertexInputStateCreateInfo({}, 0, nullptr, 0, nullptr);
     inputAssemblyInfo = vk::PipelineInputAssemblyStateCreateInfo({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
     viewport = vk::Viewport(0, 0, windowExtent.width, windowExtent.height, 0.0f, 1.0f);
     scissor = vk::Rect2D({ 0,0 }, windowExtent);
-    rasterizer = vk::PipelineRasterizationStateCreateInfo({}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill, vk::CullModeFlagBits::eBack, vk::FrontFace::eClockwise, VK_FALSE);
+    viewportInfo = vk::PipelineViewportStateCreateInfo({}, 1, &viewport, 1, &scissor);
+    rasterizer = vk::PipelineRasterizationStateCreateInfo(
+        {}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill,
+        vk::CullModeFlagBits::eBack, vk::FrontFace::eClockwise, VK_FALSE);
+    rasterizer.setLineWidth(1.0f);
+
     multisampleInfo = vk::PipelineMultisampleStateCreateInfo({}, vk::SampleCountFlagBits::e1, VK_FALSE);
     colorBlendAttachmentInfo = vk::PipelineColorBlendAttachmentState(VK_FALSE);
-    colorBlendAttachmentInfo.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+    colorBlendAttachmentInfo.setColorWriteMask(vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG |
+        vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA);
+
     colorBlendStateInfo = vk::PipelineColorBlendStateCreateInfo({}, VK_FALSE);
     colorBlendStateInfo.setAttachmentCount(1).setPAttachments(&colorBlendAttachmentInfo);
     pipelineLayoutCreateInfo = vk::PipelineLayoutCreateInfo({}, 0, nullptr, 0, nullptr);
+}
+
+void SimpleShaderPipeline::createColorOnlyRenderPass()
+{
+    vk::AttachmentDescription colorAttachment(
+        {}, framebufferFormat, vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear, vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eDontCare, vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined, vk::ImageLayout::ePresentSrcKHR);
+
+    vk::AttachmentReference colorAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
+    vk::SubpassDescription subpass({}, vk::PipelineBindPoint::eGraphics, 0, nullptr, 1, &colorAttachmentRef, nullptr, nullptr, 0, nullptr);
+    vk::RenderPassCreateInfo renderPassInfo({}, 1, &colorAttachment, 1, &subpass, 0, nullptr);
+    renderPass = device.createRenderPass(renderPassInfo);
 }
 
 void SimpleShaderPipeline::createDefaultVFShader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath, const vk::PipelineVertexInputStateCreateInfo vertexInput, const vk::PipelineLayoutCreateInfo pipelineLayoutInfo)
@@ -32,6 +54,18 @@ void SimpleShaderPipeline::createDefaultVFShader(const std::string& vertexShader
     vertexInputInfo = vertexInput;
     pipelineLayoutCreateInfo = pipelineLayoutInfo;
     pipelineLayout = device.createPipelineLayout(pipelineLayoutCreateInfo);
+    createPipeline();
+}
+
+void SimpleShaderPipeline::createPipeline()
+{
+    vk::GraphicsPipelineCreateInfo pipelineInfo(
+        {}, shaderStages.size(), shaderStages.data(),
+        &vertexInputInfo, &inputAssemblyInfo, nullptr,
+        &viewportInfo, &rasterizer, &multisampleInfo,
+        nullptr, &colorBlendStateInfo, nullptr, pipelineLayout, renderPass, 0);
+
+    pipeline = device.createGraphicsPipeline({}, pipelineInfo);
 }
 
 void SimpleShaderPipeline::destroy()
@@ -40,7 +74,9 @@ void SimpleShaderPipeline::destroy()
     {
         device.destroyShaderModule(i);
     }
+    device.destroyPipeline(pipeline);
     device.destroyPipelineLayout(pipelineLayout);
+    device.destroyRenderPass(renderPass);
 }
 
 vk::ShaderModule SimpleShaderPipeline::createShaderModule(const std::string& filePath)

@@ -29,9 +29,10 @@ void VulkanApp::cleanup()
 void VulkanApp::userInit()
 {
     //code here
-    shader.init(device, swapChain.extent());
+    shader.init(device, swapChain.extent(), swapChain.imageFormat());
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo({}, 0, nullptr, 0, nullptr);
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
+    shader.createColorOnlyRenderPass();
     shader.createDefaultVFShader("./shaders/simpleTriangleVert.spv", "./shaders/simpleTriangleFrag.spv", vertexInputInfo, pipelineLayoutInfo);
 
 }
