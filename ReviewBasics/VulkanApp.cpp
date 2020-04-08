@@ -12,6 +12,7 @@ void VulkanApp::init()
     device = context.createLogicalDevice({ VK_KHR_SWAPCHAIN_EXTENSION_NAME }, {});
     graphicsQueue = device.getQueue(context.getQueueFamilyIndex(), 0);
     swapChain.init(context, device, window.extent());
+    swapChainHandle = swapChain.handle();
     std::tie(swapChainImages, swapChainImageViews) = swapChain.getSwapChainImages();
 
     userInit();
@@ -61,22 +62,36 @@ void VulkanApp::userInit()
         vk::RenderPassBeginInfo renderPassBeginInfo(shader.getRenderPass(),
             swapChainColorOnlyFramebuffers[i], { {0,0},swapChain.extent() },
             1, &black);
-        commandBuffers[i].beginRenderPass(renderPassBeginInfo,vk::SubpassContents::eInline);
+        commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
         commandBuffers[i].draw(3, 1, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
+
+    //create synchronize objects
+    vk::SemaphoreCreateInfo semaphoreCreateInfo;
+    imageAvailableSemaphore = device.createSemaphore(semaphoreCreateInfo);
+    renderFinishedSemaphore = device.createSemaphore(semaphoreCreateInfo);
 }
 
 void VulkanApp::userLoopFunc()
 {
     //code here
+    auto frameIndex = device.acquireNextImageKHR(swapChain.handle(), 0xFFFFFFFF, imageAvailableSemaphore, {});
+    vk::PipelineStageFlags waitStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+    vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore, &waitStages, 1, &commandBuffers[frameIndex.value], 1, &renderFinishedSemaphore);
+    graphicsQueue.submit(submitInfo, {});
+    vk::PresentInfoKHR presentInfo(1, &renderFinishedSemaphore, 1, &swapChainHandle, &frameIndex.value, nullptr);
+    graphicsQueue.presentKHR(presentInfo);
+    graphicsQueue.waitIdle();
 }
 
 void VulkanApp::userDestroy()
 {
     //code here
+    device.destroySemaphore(imageAvailableSemaphore);
+    device.destroySemaphore(renderFinishedSemaphore);
     device.destroyCommandPool(commandPool);
     for (const auto i : swapChainColorOnlyFramebuffers)
     {
@@ -92,4 +107,5 @@ void VulkanApp::mainLoop()
         window.pollEvents();
         userLoopFunc();
     }
+    graphicsQueue.waitIdle();
 }

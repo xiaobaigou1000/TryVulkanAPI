@@ -19,6 +19,7 @@ private:
     NativeWindow window;
     VulkanContext context;
     EasyUseSwapChain swapChain;
+    vk::SwapchainKHR swapChainHandle;
     std::vector<vk::Image> swapChainImages;
     std::vector<vk::ImageView> swapChainImageViews;
     vk::Device device;
@@ -29,6 +30,8 @@ private:
     std::vector<vk::Framebuffer> swapChainColorOnlyFramebuffers;
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
+    vk::Semaphore imageAvailableSemaphore;
+    vk::Semaphore renderFinishedSemaphore;
 
     void mainLoop();
 };
