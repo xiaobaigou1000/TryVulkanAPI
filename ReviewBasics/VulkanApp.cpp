@@ -1,4 +1,5 @@
 #include"VulkanApp.h"
+#include<limits>
 
 void VulkanApp::run()
 {
@@ -70,28 +71,61 @@ void VulkanApp::userInit()
     }
 
     //create synchronize objects
+    max_images_in_flight = swapChainImages.size() - 1;
+    max_images_in_flight = std::max<uint32_t>(max_images_in_flight, 1);
+
+    imageAvailableSemaphore.resize(max_images_in_flight);
+    renderFinishedSemaphore.resize(max_images_in_flight);
+    inFlightFences.resize(max_images_in_flight);
+
     vk::SemaphoreCreateInfo semaphoreCreateInfo;
-    imageAvailableSemaphore = device.createSemaphore(semaphoreCreateInfo);
-    renderFinishedSemaphore = device.createSemaphore(semaphoreCreateInfo);
+    vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
+    for (uint32_t i = 0; i < max_images_in_flight; ++i)
+    {
+        imageAvailableSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
+        renderFinishedSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
+        inFlightFences[i] = device.createFence(fenceCreateInfo);
+    }
 }
 
 void VulkanApp::userLoopFunc()
 {
     //code here
-    auto frameIndex = device.acquireNextImageKHR(swapChain.handle(), 0xFFFFFFFF, imageAvailableSemaphore, {});
+    device.waitForFences(1, &inFlightFences[current_frame], VK_TRUE, (std::numeric_limits<uint32_t>::max)());
+    device.resetFences(1, &inFlightFences[current_frame]);
+
+    auto frameIndex = device.acquireNextImageKHR(
+        swapChainHandle, (std::numeric_limits<uint32_t>::max)(), imageAvailableSemaphore[current_frame], {});
+
     vk::PipelineStageFlags waitStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-    vk::SubmitInfo submitInfo(1, &imageAvailableSemaphore, &waitStages, 1, &commandBuffers[frameIndex.value], 1, &renderFinishedSemaphore);
-    graphicsQueue.submit(submitInfo, {});
-    vk::PresentInfoKHR presentInfo(1, &renderFinishedSemaphore, 1, &swapChainHandle, &frameIndex.value, nullptr);
+
+    vk::SubmitInfo submitInfo(
+        1, &imageAvailableSemaphore[current_frame], &waitStages,
+        1, &commandBuffers[frameIndex.value],
+        1, &renderFinishedSemaphore[current_frame]);
+
+    graphicsQueue.submit(submitInfo, inFlightFences[current_frame]);
+
+    vk::PresentInfoKHR presentInfo(
+        1, &renderFinishedSemaphore[current_frame],
+        1, &swapChainHandle, &frameIndex.value, nullptr);
+
     graphicsQueue.presentKHR(presentInfo);
-    graphicsQueue.waitIdle();
+
+    current_frame = (current_frame + 1) % max_images_in_flight;
 }
 
 void VulkanApp::userDestroy()
 {
     //code here
-    device.destroySemaphore(imageAvailableSemaphore);
-    device.destroySemaphore(renderFinishedSemaphore);
+
+    for (uint32_t i = 0; i < inFlightFences.size(); ++i)
+    {
+        device.destroySemaphore(imageAvailableSemaphore[i]);
+        device.destroySemaphore(renderFinishedSemaphore[i]);
+        device.destroyFence(inFlightFences[i]);
+    }
+
     device.destroyCommandPool(commandPool);
     for (const auto i : swapChainColorOnlyFramebuffers)
     {
