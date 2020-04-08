@@ -11,6 +11,7 @@ public:
         const vk::PipelineVertexInputStateCreateInfo vertexInput, const vk::PipelineLayoutCreateInfo pipelineLayout);
     
     void createPipeline();
+    inline vk::RenderPass getRenderPass()const { return renderPass; }
     void destroy();
 private:
     vk::Device device;

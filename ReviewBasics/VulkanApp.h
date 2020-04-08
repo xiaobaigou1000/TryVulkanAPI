@@ -26,6 +26,9 @@ private:
 
     //code here
     SimpleShaderPipeline shader;
+    std::vector<vk::Framebuffer> swapChainColorOnlyFramebuffers;
+    vk::CommandPool commandPool;
+    std::vector<vk::CommandBuffer> commandBuffers;
 
     void mainLoop();
 };
