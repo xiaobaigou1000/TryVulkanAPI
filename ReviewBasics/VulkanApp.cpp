@@ -53,6 +53,20 @@ void VulkanApp::userInit()
     commandBuffers = device.allocateCommandBuffers(allocInfo);
 
     //record command buffers
+    for (uint32_t i = 0; i < commandBuffers.size(); ++i)
+    {
+        vk::CommandBufferBeginInfo beginInfo({}, nullptr);
+        commandBuffers[i].begin(beginInfo);
+        vk::ClearValue black{ std::array<float,4>{ 0.0f,0.0f,0.0f,1.0f } };
+        vk::RenderPassBeginInfo renderPassBeginInfo(shader.getRenderPass(),
+            swapChainColorOnlyFramebuffers[i], { {0,0},swapChain.extent() },
+            1, &black);
+        commandBuffers[i].beginRenderPass(renderPassBeginInfo,vk::SubpassContents::eInline);
+        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
+        commandBuffers[i].draw(3, 1, 0, 0);
+        commandBuffers[i].endRenderPass();
+        commandBuffers[i].end();
+    }
 }
 
 void VulkanApp::userLoopFunc()

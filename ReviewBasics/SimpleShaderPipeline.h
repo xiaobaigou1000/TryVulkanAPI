@@ -12,6 +12,7 @@ public:
     
     void createPipeline();
     inline vk::RenderPass getRenderPass()const { return renderPass; }
+    inline vk::Pipeline getPipeline()const { return pipeline; }
     void destroy();
 private:
     vk::Device device;
