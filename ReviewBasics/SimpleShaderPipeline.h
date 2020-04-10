@@ -13,6 +13,10 @@ public:
     void createPipeline();
     inline vk::RenderPass getRenderPass()const { return renderPass; }
     inline vk::Pipeline getPipeline()const { return pipeline; }
+    inline SimpleShaderPipeline& setPipelineVertexInputStateCreateInfo(vk::PipelineVertexInputStateCreateInfo vertexInputInfo)
+    {
+        this->vertexInputInfo = vertexInputInfo;
+    }
     void destroy();
 private:
     vk::Device device;

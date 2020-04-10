@@ -34,10 +34,13 @@ void VulkanApp::userInit()
 
     //create shader pipeline
     shader.init(device, swapChain.extent(), swapChain.imageFormat());
-    vk::PipelineVertexInputStateCreateInfo vertexInputInfo({}, 0, nullptr, 0, nullptr);
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
     shader.createColorOnlyRenderPass();
-    shader.createDefaultVFShader("./shaders/simpleTriangleVert.spv", "./shaders/simpleTriangleFrag.spv", vertexInputInfo, pipelineLayoutInfo);
+    auto vertexBinding = Vertex::getBindingDescription();
+    auto vertexAttribute = Vertex::getAttributeDescription();
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,vertexAttribute.size(),vertexAttribute.data() };
+    shader.createDefaultVFShader("./shaders/triangleWithAttribVert.spv", "./shaders/triangleWithAttribFrag.spv",
+        vertexInputInfo, pipelineLayoutInfo);
 
     //create framebuffers
     swapChainColorOnlyFramebuffers.resize(swapChainImageViews.size());
