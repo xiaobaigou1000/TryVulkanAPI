@@ -45,6 +45,7 @@ private:
     std::vector<vk::ImageView> swapChainImageViews;
     vk::Device device;
     vk::Queue graphicsQueue;//be able to present image
+    uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
 
     //code here
     SimpleShaderPipeline shader;
@@ -58,10 +59,13 @@ private:
     uint32_t current_frame = 0;
 
     constexpr static std::array<Vertex, 3> vertices{
-        Vertex{glm::vec2{0.0f,-0.5f},glm::vec3{1.0f,0.0f,0.0f}},
+        Vertex{glm::vec2{0.0f,-0.5f},glm::vec3{1.0f,1.0f,1.0f}},
         Vertex{glm::vec2{0.5f,0.5f},glm::vec3{0.0f,1.0f,0.0f}},
         Vertex{glm::vec2{-0.5f,0.5f},glm::vec3{0.0f,0.0f,1.0f}}
     };
+
+    vk::Buffer vertexBuffer;
+    vk::DeviceMemory vertexBufferMemory;
 
     void mainLoop();
 };

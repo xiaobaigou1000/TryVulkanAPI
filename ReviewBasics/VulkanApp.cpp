@@ -39,8 +39,32 @@ void VulkanApp::userInit()
     auto vertexBinding = Vertex::getBindingDescription();
     auto vertexAttribute = Vertex::getAttributeDescription();
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
-    shader.createDefaultVFShader("./shaders/triangleWithAttribVert.spv", "./shaders/triangleWithAttribFrag.spv",
+    shader.createDefaultVFShader("./shaders/triangleWithVertexInputVert.spv", "./shaders/triangleWithVertexInputFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
+
+    //create vertex buffers
+    uint32_t queueFamilyIndices = context.getQueueFamilyIndex();
+    vk::BufferCreateInfo vertexBufferInfo(
+        {},
+        vertices.size() * sizeof(Vertex),
+        vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::SharingMode::eExclusive,
+        1,
+        &queueFamilyIndices);
+    vertexBuffer = device.createBuffer(vertexBufferInfo);
+    vk::MemoryRequirements vertexBufferRequirements = device.getBufferMemoryRequirements(vertexBuffer);
+    vk::MemoryAllocateInfo vertexMemoryAllocInfo(
+        vertexBufferRequirements.size,
+        findMemoryType(
+            vertexBufferRequirements.memoryTypeBits,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
+    vertexBufferMemory = device.allocateMemory(vertexMemoryAllocInfo);
+    device.bindBufferMemory(vertexBuffer, vertexBufferMemory, 0);
+
+    //fill vertex buffer
+    void* data = device.mapMemory(vertexBufferMemory, 0, vertexBufferRequirements.size);
+    memcpy(data, vertices.data(), vertexBufferRequirements.size);
+    device.unmapMemory(vertexBufferMemory);
 
     //create framebuffers
     swapChainColorOnlyFramebuffers.resize(swapChainImageViews.size());
@@ -68,7 +92,8 @@ void VulkanApp::userInit()
             1, &black);
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
-        commandBuffers[i].draw(3, 1, 0, 0);
+        commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer,1>{ vertexBuffer }, std::array<vk::DeviceSize,1>{ 0 });
+        commandBuffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
@@ -121,6 +146,8 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    device.destroyBuffer(vertexBuffer);
+    device.freeMemory(vertexBufferMemory);
 
     for (uint32_t i = 0; i < inFlightFences.size(); ++i)
     {
@@ -135,6 +162,21 @@ void VulkanApp::userDestroy()
         device.destroyFramebuffer(i);
     }
     shader.destroy();
+}
+
+uint32_t VulkanApp::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+{
+    vk::PhysicalDeviceMemoryProperties memoryProperties = context.getPhysicalDeviceHandle().getMemoryProperties();
+    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
+    {
+        bool memoryTypeSupport = typeFilter & (1 << i);
+        bool memoryPropertySupport = (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties;
+        if (memoryTypeSupport && memoryPropertySupport)
+        {
+            return i;
+        }
+    }
+    throw std::runtime_error("no memory type supported.");
 }
 
 void VulkanApp::mainLoop()
