@@ -8,7 +8,7 @@ void SimpleShaderPipeline::init(const vk::Device device, const vk::Extent2D wind
 
     vertexInputInfo = vk::PipelineVertexInputStateCreateInfo({}, 0, nullptr, 0, nullptr);
     inputAssemblyInfo = vk::PipelineInputAssemblyStateCreateInfo({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
-    viewport = vk::Viewport(0, 0, windowExtent.width, windowExtent.height, 0.0f, 1.0f);
+    viewport = vk::Viewport(0, 0, static_cast<float>(windowExtent.width), static_cast<float>(windowExtent.height), 0.0f, 1.0f);
     scissor = vk::Rect2D({ 0,0 }, windowExtent);
     viewportInfo = vk::PipelineViewportStateCreateInfo({}, 1, &viewport, 1, &scissor);
     rasterizer = vk::PipelineRasterizationStateCreateInfo(
@@ -63,7 +63,7 @@ void SimpleShaderPipeline::createDefaultVFShader(const std::string& vertexShader
 void SimpleShaderPipeline::createPipeline()
 {
     vk::GraphicsPipelineCreateInfo pipelineInfo(
-        {}, shaderStages.size(), shaderStages.data(),
+        {}, static_cast<uint32_t>(shaderStages.size()), shaderStages.data(),
         &vertexInputInfo, &inputAssemblyInfo, nullptr,
         &viewportInfo, &rasterizer, &multisampleInfo,
         nullptr, &colorBlendStateInfo, nullptr, pipelineLayout, renderPass, 0);

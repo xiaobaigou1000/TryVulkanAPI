@@ -38,7 +38,7 @@ void VulkanApp::userInit()
     shader.createColorOnlyRenderPass();
     auto vertexBinding = Vertex::getBindingDescription();
     auto vertexAttribute = Vertex::getAttributeDescription();
-    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,vertexAttribute.size(),vertexAttribute.data() };
+    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
     shader.createDefaultVFShader("./shaders/triangleWithAttribVert.spv", "./shaders/triangleWithAttribFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
@@ -74,7 +74,7 @@ void VulkanApp::userInit()
     }
 
     //create synchronize objects
-    max_images_in_flight = swapChainImages.size() - 1;
+    max_images_in_flight = static_cast<uint32_t>(swapChainImages.size() - 1);
     max_images_in_flight = std::max<uint32_t>(max_images_in_flight, 1);
 
     imageAvailableSemaphore.resize(max_images_in_flight);

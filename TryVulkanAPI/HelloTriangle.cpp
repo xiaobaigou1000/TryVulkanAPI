@@ -385,7 +385,7 @@ void HelloTriangleApplication::createCommandPool()
 void HelloTriangleApplication::createCommandBuffers()
 {
     commandBuffers.resize(swapChainFrameBuffers.size());
-    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, commandBuffers.size());
+    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(commandBuffers.size()));
     commandBuffers = device.allocateCommandBuffers(allocInfo);
 
     for (uint32_t i = 0; i < commandBuffers.size(); i++)
@@ -400,7 +400,7 @@ void HelloTriangleApplication::createCommandBuffers()
         commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipelineLayout, 0, { descriptorSets[i] }, {});
         commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
         commandBuffers[i].setViewport(0, { {0.0f,0.0f,static_cast<float>(width),static_cast<float>(height),0.0f,1.0f} });
-        commandBuffers[i].drawIndexed(indices.size(), 1, 0, 0, 0);
+        commandBuffers[i].drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
@@ -700,6 +700,7 @@ uint32_t HelloTriangleApplication::findMemoryType(uint32_t typeFilter, vk::Memor
             return i;
         }
     }
+    return {};
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL HelloTriangleApplication::debugCallback(
