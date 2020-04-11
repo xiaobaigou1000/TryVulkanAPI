@@ -92,7 +92,7 @@ void VulkanApp::userInit()
             1, &black);
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
-        commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer,1>{ vertexBuffer }, std::array<vk::DeviceSize,1>{ 0 });
+        commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer, 1>{ vertexBuffer }, std::array<vk::DeviceSize, 1>{ 0 });
         commandBuffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();

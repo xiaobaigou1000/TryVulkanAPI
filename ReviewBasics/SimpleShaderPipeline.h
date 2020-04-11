@@ -9,7 +9,7 @@ public:
     void createColorOnlyRenderPass();
     void createDefaultVFShader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath,
         const vk::PipelineVertexInputStateCreateInfo vertexInput, const vk::PipelineLayoutCreateInfo pipelineLayout);
-    
+
     void createPipeline();
     inline vk::RenderPass getRenderPass()const { return renderPass; }
     inline vk::Pipeline getPipeline()const { return pipeline; }

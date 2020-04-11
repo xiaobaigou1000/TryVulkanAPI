@@ -20,9 +20,9 @@ protected:
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription,2> getAttributeDescription()
+        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescription()
         {
-            vk::VertexInputAttributeDescription vertexPosition{0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position)};
+            vk::VertexInputAttributeDescription vertexPosition{ 0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position) };
             vk::VertexInputAttributeDescription vertexColor{ 1,0,vk::Format::eR32G32B32A32Sfloat,offsetof(Vertex,color) };
             return { vertexPosition,vertexColor };
         }
