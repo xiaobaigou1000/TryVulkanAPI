@@ -42,18 +42,6 @@ void VulkanApp::userInit()
     shader.createDefaultVFShader("./shaders/triangleWithVertexInputVert.spv", "./shaders/triangleWithVertexInputFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
-    //create vertex buffers
-    vk::DeviceSize vertexBufferSize = vertices.size() * sizeof(Vertex);
-    std::tie(vertexBuffer, vertexBufferMemory) = createBuffer(
-        vertexBufferSize,
-        vk::BufferUsageFlagBits::eVertexBuffer,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-
-    //fill vertex buffer
-    void* data = device.mapMemory(vertexBufferMemory, 0, vertexBufferSize);
-    memcpy(data, vertices.data(), vertexBufferSize);
-    device.unmapMemory(vertexBufferMemory);
-
     //create framebuffers
     swapChainColorOnlyFramebuffers.resize(swapChainImageViews.size());
     for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
@@ -68,6 +56,28 @@ void VulkanApp::userInit()
     vk::CommandBufferAllocateInfo allocInfo(commandPool,
         vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainColorOnlyFramebuffers.size()));
     commandBuffers = device.allocateCommandBuffers(allocInfo);
+
+    //create vertex buffers
+    vk::DeviceSize vertexBufferSize = vertices.size() * sizeof(Vertex);
+    vk::Buffer stageBuffer;
+    vk::DeviceMemory stageBufferMemory;
+    std::tie(stageBuffer, stageBufferMemory) = createBuffer(
+        vertexBufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    void* data = device.mapMemory(stageBufferMemory, 0, vertexBufferSize);
+    memcpy(data, vertices.data(), vertexBufferSize);
+    device.unmapMemory(stageBufferMemory);
+
+    std::tie(vertexBuffer, vertexBufferMemory) = createBuffer(
+        vertexBufferSize,
+        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
+        vk::MemoryPropertyFlagBits::eDeviceLocal);
+
+    copyBuffer(stageBuffer, vertexBuffer, vertexBufferSize);
+    device.destroyBuffer(stageBuffer);
+    device.freeMemory(stageBufferMemory);
 
     //record command buffers
     for (uint32_t i = 0; i < commandBuffers.size(); ++i)
@@ -167,7 +177,7 @@ uint32_t VulkanApp::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags 
     throw std::runtime_error("no memory type supported.");
 }
 
-std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize size, vk::BufferUsageFlagBits usage, vk::MemoryPropertyFlags properties)
+std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
 {
     uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
     vk::BufferCreateInfo bufferCreateInfo({}, size, usage, vk::SharingMode::eExclusive, 1, &queueFamilyIndex);
@@ -177,6 +187,21 @@ std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize 
     vk::DeviceMemory memory = device.allocateMemory(memoryAllocInfo);
     device.bindBufferMemory(buffer, memory, 0);
     return { buffer,memory };
+}
+
+void VulkanApp::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
+{
+    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(allocInfo).front();
+    vk::CommandBufferBeginInfo beginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, nullptr);
+    commandBuffer.begin(beginInfo);
+    vk::BufferCopy copyRegion(0, 0, size);
+    commandBuffer.copyBuffer(src, dst, copyRegion);
+    commandBuffer.end();
+    vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr);
+    graphicsQueue.submit(submitInfo, {});
+    graphicsQueue.waitIdle();
+    device.freeCommandBuffers(commandPool, commandBuffer);
 }
 
 void VulkanApp::mainLoop()
