@@ -46,6 +46,7 @@ private:
     vk::Device device;
     vk::Queue graphicsQueue;//be able to present image
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
+    std::tuple<vk::Buffer, vk::DeviceMemory> createBuffer(vk::DeviceSize size, vk::BufferUsageFlagBits usage, vk::MemoryPropertyFlags properties);
 
     //code here
     SimpleShaderPipeline shader;

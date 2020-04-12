@@ -43,27 +43,15 @@ void VulkanApp::userInit()
         vertexInputInfo, pipelineLayoutInfo);
 
     //create vertex buffers
-    uint32_t queueFamilyIndices = context.getQueueFamilyIndex();
-    vk::BufferCreateInfo vertexBufferInfo(
-        {},
-        vertices.size() * sizeof(Vertex),
+    vk::DeviceSize vertexBufferSize = vertices.size() * sizeof(Vertex);
+    std::tie(vertexBuffer, vertexBufferMemory) = createBuffer(
+        vertexBufferSize,
         vk::BufferUsageFlagBits::eVertexBuffer,
-        vk::SharingMode::eExclusive,
-        1,
-        &queueFamilyIndices);
-    vertexBuffer = device.createBuffer(vertexBufferInfo);
-    vk::MemoryRequirements vertexBufferRequirements = device.getBufferMemoryRequirements(vertexBuffer);
-    vk::MemoryAllocateInfo vertexMemoryAllocInfo(
-        vertexBufferRequirements.size,
-        findMemoryType(
-            vertexBufferRequirements.memoryTypeBits,
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent));
-    vertexBufferMemory = device.allocateMemory(vertexMemoryAllocInfo);
-    device.bindBufferMemory(vertexBuffer, vertexBufferMemory, 0);
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
 
     //fill vertex buffer
-    void* data = device.mapMemory(vertexBufferMemory, 0, vertexBufferRequirements.size);
-    memcpy(data, vertices.data(), vertexBufferRequirements.size);
+    void* data = device.mapMemory(vertexBufferMemory, 0, vertexBufferSize);
+    memcpy(data, vertices.data(), vertexBufferSize);
     device.unmapMemory(vertexBufferMemory);
 
     //create framebuffers
@@ -177,6 +165,18 @@ uint32_t VulkanApp::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags 
         }
     }
     throw std::runtime_error("no memory type supported.");
+}
+
+std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize size, vk::BufferUsageFlagBits usage, vk::MemoryPropertyFlags properties)
+{
+    uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
+    vk::BufferCreateInfo bufferCreateInfo({}, size, usage, vk::SharingMode::eExclusive, 1, &queueFamilyIndex);
+    vk::Buffer buffer = device.createBuffer(bufferCreateInfo);
+    vk::MemoryRequirements memoryRequirements = device.getBufferMemoryRequirements(buffer);
+    vk::MemoryAllocateInfo memoryAllocInfo(memoryRequirements.size, findMemoryType(memoryRequirements.memoryTypeBits, properties));
+    vk::DeviceMemory memory = device.allocateMemory(memoryAllocInfo);
+    device.bindBufferMemory(buffer, memory, 0);
+    return { buffer,memory };
 }
 
 void VulkanApp::mainLoop()
