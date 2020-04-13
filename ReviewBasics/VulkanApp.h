@@ -9,6 +9,13 @@
 class VulkanApp
 {
 protected:
+    struct SimpleUniformObject
+    {
+        glm::mat4 model;
+        glm::mat4 view;
+        glm::mat4 project;
+    };
+
     struct Vertex
     {
         glm::vec2 position;
@@ -51,6 +58,8 @@ private:
 
     //code here
     SimpleShaderPipeline shader;
+    vk::DescriptorSetLayout descriptorSetLayout;
+
     std::vector<vk::Framebuffer> swapChainColorOnlyFramebuffers;
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
@@ -59,6 +68,7 @@ private:
     std::vector<vk::Fence> inFlightFences;
     uint32_t max_images_in_flight = 0;
     uint32_t current_frame = 0;
+
 
     constexpr static std::array<Vertex, 4> vertices{
         Vertex{glm::vec2{-0.5f,-0.5f},glm::vec3{1.0f,0.0f,0.0f}},
@@ -75,6 +85,9 @@ private:
     vk::DeviceMemory vertexBufferMemory;
     vk::Buffer indexBuffer;
     vk::DeviceMemory indexBufferMemory;
+    std::vector<vk::Buffer> uniformBuffers;
+    std::vector<vk::DeviceMemory> uniformBufferMemorys;
+    void updateUniformBuffer(uint32_t imageIndex);
 
     void mainLoop();
 };

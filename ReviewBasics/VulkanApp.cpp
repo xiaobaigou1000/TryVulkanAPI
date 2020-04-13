@@ -1,5 +1,6 @@
 #include"VulkanApp.h"
 #include<limits>
+#include<chrono>
 
 void VulkanApp::run()
 {
@@ -34,10 +35,18 @@ void VulkanApp::userInit()
 
     //create shader pipeline
     shader.init(device, swapChain.extent(), swapChain.imageFormat());
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 0, nullptr, 0, nullptr);
     shader.createColorOnlyRenderPass();
     auto vertexBinding = Vertex::getBindingDescription();
     auto vertexAttribute = Vertex::getAttributeDescription();
+    vk::DescriptorSetLayoutBinding descriptorBinding(
+        0,
+        vk::DescriptorType::eUniformBuffer,
+        1,
+        vk::ShaderStageFlagBits::eVertex,
+        nullptr);
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, 1, &descriptorBinding);
+    descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 0, nullptr);
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
     shader.createDefaultVFShader("./shaders/triangleWithVertexInputVert.spv", "./shaders/triangleWithVertexInputFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
@@ -100,6 +109,19 @@ void VulkanApp::userInit()
     device.destroyBuffer(stageBuffer);
     device.freeMemory(stageBufferMemory);
 
+    //create uniform buffers
+    uniformBuffers.resize(swapChainImages.size());
+    uniformBufferMemorys.resize(swapChainImages.size());
+    for (uint32_t i = 0; i < uniformBuffers.size(); ++i)
+    {
+        vk::DeviceSize uboSize = sizeof(SimpleUniformObject);
+        std::tie(uniformBuffers[i], uniformBufferMemorys[i]) = createBuffer(
+            uboSize,
+            vk::BufferUsageFlagBits::eUniformBuffer,
+            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+            );
+    }
+
     //record command buffers
     for (uint32_t i = 0; i < commandBuffers.size(); ++i)
     {
@@ -145,6 +167,8 @@ void VulkanApp::userLoopFunc()
     auto frameIndex = device.acquireNextImageKHR(
         swapChainHandle, (std::numeric_limits<uint32_t>::max)(), imageAvailableSemaphore[current_frame], {});
 
+    updateUniformBuffer(frameIndex.value);
+
     vk::PipelineStageFlags waitStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
 
     vk::SubmitInfo submitInfo(
@@ -166,6 +190,14 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    for (uint32_t i = 0; i < uniformBuffers.size(); ++i)
+    {
+        device.destroyBuffer(uniformBuffers[i]);
+        device.freeMemory(uniformBufferMemorys[i]);
+    }
+
+    device.destroyDescriptorSetLayout(descriptorSetLayout);
+
     device.destroyBuffer(indexBuffer);
     device.freeMemory(indexBufferMemory);
 
@@ -227,6 +259,32 @@ void VulkanApp::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
     graphicsQueue.submit(submitInfo, {});
     graphicsQueue.waitIdle();
     device.freeCommandBuffers(commandPool, commandBuffer);
+}
+
+void VulkanApp::updateUniformBuffer(uint32_t imageIndex)
+{
+    using glm::mat4;
+    using glm::vec3;
+    using glm::rotate;
+    using glm::translate;
+    using glm::scale;
+    using glm::lookAt;
+    using glm::perspective;
+    using glm::radians;
+
+    static auto startTime = std::chrono::high_resolution_clock::now();
+    float time =
+        std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(
+            std::chrono::high_resolution_clock::now() - startTime).count();
+
+    SimpleUniformObject ubo;
+    ubo.model = rotate(mat4(1.0f), time * radians(60.0f), vec3(0.0f, 0.0f, 1.0f));
+    ubo.view = lookAt(vec3(2.0f, 2.0f, 2.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
+    ubo.project = perspective(radians(45.0f), float(swapChain.extent().width) / float(swapChain.extent().height), 0.1f, 10.0f);
+    ubo.project[1][1] *= -1;
+    void* data = device.mapMemory(uniformBufferMemorys[imageIndex], 0, sizeof(SimpleUniformObject));
+    memcpy(data, &ubo, sizeof(SimpleUniformObject));
+    device.unmapMemory(uniformBufferMemorys[imageIndex]);
 }
 
 void VulkanApp::mainLoop()
