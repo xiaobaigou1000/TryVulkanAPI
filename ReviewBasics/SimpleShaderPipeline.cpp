@@ -13,7 +13,7 @@ void SimpleShaderPipeline::init(const vk::Device device, const vk::Extent2D wind
     viewportInfo = vk::PipelineViewportStateCreateInfo({}, 1, &viewport, 1, &scissor);
     rasterizer = vk::PipelineRasterizationStateCreateInfo(
         {}, VK_FALSE, VK_FALSE, vk::PolygonMode::eFill,
-        vk::CullModeFlagBits::eBack, vk::FrontFace::eClockwise, VK_FALSE);
+        vk::CullModeFlagBits::eBack, vk::FrontFace::eCounterClockwise, VK_FALSE);
     rasterizer.setLineWidth(1.0f);
 
     multisampleInfo = vk::PipelineMultisampleStateCreateInfo({}, vk::SampleCountFlagBits::e1, VK_FALSE);

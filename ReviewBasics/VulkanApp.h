@@ -89,5 +89,8 @@ private:
     std::vector<vk::DeviceMemory> uniformBufferMemorys;
     void updateUniformBuffer(uint32_t imageIndex);
 
+    vk::DescriptorPool descriptorPool;
+    std::vector<vk::DescriptorSet> descriptorSets;
+
     void mainLoop();
 };

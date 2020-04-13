@@ -48,7 +48,7 @@ void VulkanApp::userInit()
     descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 0, nullptr);
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
-    shader.createDefaultVFShader("./shaders/triangleWithVertexInputVert.spv", "./shaders/triangleWithVertexInputFrag.spv",
+    shader.createDefaultVFShader("./shaders/triangleWithUniformVert.spv", "./shaders/triangleWithUniformFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
     //create framebuffers
@@ -122,6 +122,30 @@ void VulkanApp::userInit()
             );
     }
 
+    //create descriptor pool
+    vk::DescriptorPoolSize descriptorPoolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, static_cast<uint32_t>(swapChainImages.size()), 1, &descriptorPoolSize);
+    descriptorPool = device.createDescriptorPool(descriptorPoolCreateInfo);
+
+    //create and configure descriptor sets
+    std::vector<vk::DescriptorSetLayout> layouts(swapChainImages.size(), descriptorSetLayout);
+    vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool, static_cast<uint32_t>(layouts.size()), layouts.data());
+    descriptorSets = device.allocateDescriptorSets(descriptorSetAllocateInfo);
+    for (uint32_t i = 0; i < descriptorSets.size(); ++i)
+    {
+        vk::DescriptorBufferInfo descriptorBufferInfo(uniformBuffers[i], 0, sizeof(SimpleUniformObject));
+        vk::WriteDescriptorSet descriptorWrite(
+            descriptorSets[i],
+            0,
+            0,
+            1,
+            vk::DescriptorType::eUniformBuffer,
+            nullptr,
+            &descriptorBufferInfo,
+            nullptr);
+        device.updateDescriptorSets(descriptorWrite, {});
+    }
+
     //record command buffers
     for (uint32_t i = 0; i < commandBuffers.size(); ++i)
     {
@@ -135,6 +159,7 @@ void VulkanApp::userInit()
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
         commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer, 1>{ vertexBuffer }, std::array<vk::DeviceSize, 1>{ 0 });
         commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+        commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, shader.getPipelineLayout(), 0, descriptorSets[i], {});
         commandBuffers[i].drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
@@ -196,6 +221,7 @@ void VulkanApp::userDestroy()
         device.freeMemory(uniformBufferMemorys[i]);
     }
 
+    device.destroyDescriptorPool(descriptorPool);
     device.destroyDescriptorSetLayout(descriptorSetLayout);
 
     device.destroyBuffer(indexBuffer);

@@ -13,6 +13,7 @@ public:
     void createPipeline();
     inline vk::RenderPass getRenderPass()const { return renderPass; }
     inline vk::Pipeline getPipeline()const { return pipeline; }
+    inline vk::PipelineLayout getPipelineLayout()const { return pipelineLayout; }
     inline SimpleShaderPipeline& setPipelineVertexInputStateCreateInfo(vk::PipelineVertexInputStateCreateInfo vertexInputInfo)
     {
         this->vertexInputInfo = vertexInputInfo;
