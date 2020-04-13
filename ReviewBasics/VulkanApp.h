@@ -60,14 +60,21 @@ private:
     uint32_t max_images_in_flight = 0;
     uint32_t current_frame = 0;
 
-    constexpr static std::array<Vertex, 3> vertices{
-        Vertex{glm::vec2{0.0f,-0.5f},glm::vec3{1.0f,1.0f,1.0f}},
-        Vertex{glm::vec2{0.5f,0.5f},glm::vec3{0.0f,1.0f,0.0f}},
-        Vertex{glm::vec2{-0.5f,0.5f},glm::vec3{0.0f,0.0f,1.0f}}
+    constexpr static std::array<Vertex, 4> vertices{
+        Vertex{glm::vec2{-0.5f,-0.5f},glm::vec3{1.0f,0.0f,0.0f}},
+        Vertex{glm::vec2{0.5f,-0.5f},glm::vec3{0.0f,1.0f,0.0f}},
+        Vertex{glm::vec2{0.5f,0.5f},glm::vec3{0.0f,0.0f,1.0f}},
+        Vertex{glm::vec2{-0.5f,0.5f},glm::vec3{1.0f,1.0f,1.0f}}
+    };
+
+    constexpr static std::array<uint32_t, 6> indices{
+        0, 1, 2, 2, 3, 0
     };
 
     vk::Buffer vertexBuffer;
     vk::DeviceMemory vertexBufferMemory;
+    vk::Buffer indexBuffer;
+    vk::DeviceMemory indexBufferMemory;
 
     void mainLoop();
 };

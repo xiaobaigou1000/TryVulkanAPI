@@ -79,6 +79,27 @@ void VulkanApp::userInit()
     device.destroyBuffer(stageBuffer);
     device.freeMemory(stageBufferMemory);
 
+    //create index buffer
+    vk::DeviceSize indexBufferSize = indices.size() * sizeof(uint32_t);
+    std::tie(stageBuffer, stageBufferMemory) = createBuffer(
+        indexBufferSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+
+    data = device.mapMemory(stageBufferMemory, 0, indexBufferSize);
+    memcpy(data, indices.data(), indexBufferSize);
+    device.unmapMemory(stageBufferMemory);
+
+    std::tie(indexBuffer, indexBufferMemory) = createBuffer(
+        indexBufferSize,
+        vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
+        vk::MemoryPropertyFlagBits::eDeviceLocal
+        );
+
+    copyBuffer(stageBuffer, indexBuffer, indexBufferSize);
+    device.destroyBuffer(stageBuffer);
+    device.freeMemory(stageBufferMemory);
+
     //record command buffers
     for (uint32_t i = 0; i < commandBuffers.size(); ++i)
     {
@@ -91,7 +112,8 @@ void VulkanApp::userInit()
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
         commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer, 1>{ vertexBuffer }, std::array<vk::DeviceSize, 1>{ 0 });
-        commandBuffers[i].draw(static_cast<uint32_t>(vertices.size()), 1, 0, 0);
+        commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
+        commandBuffers[i].drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();
     }
@@ -144,6 +166,9 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    device.destroyBuffer(indexBuffer);
+    device.freeMemory(indexBufferMemory);
+
     device.destroyBuffer(vertexBuffer);
     device.freeMemory(vertexBufferMemory);
 
