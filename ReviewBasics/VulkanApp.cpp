@@ -1,6 +1,9 @@
 #include"VulkanApp.h"
 #include<limits>
 #include<chrono>
+#include<opencv2/core.hpp>
+#include<opencv2/imgcodecs.hpp>
+#include<opencv2/imgproc.hpp>
 
 void VulkanApp::run()
 {
@@ -122,6 +125,55 @@ void VulkanApp::userInit()
             );
     }
 
+    //load texture image to stage buffer
+    cv::Mat rawPicture = cv::imread("./textures/dog.jpg");
+    cv::Mat picture;
+    cv::cvtColor(rawPicture, picture, cv::ColorConversionCodes::COLOR_BGR2RGBA);
+
+    void* pictureData = picture.data;
+    size_t elemSize = picture.elemSize();
+    size_t pictureSize = picture.total() * picture.elemSize();
+    std::tie(stageBuffer, stageBufferMemory) = createBuffer(
+        pictureSize,
+        vk::BufferUsageFlagBits::eTransferSrc,
+        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
+        );
+    data = device.mapMemory(stageBufferMemory, 0, pictureSize);
+    memcpy(data, pictureData, pictureSize);
+    device.unmapMemory(stageBufferMemory);
+
+    //create texture VkImage
+    uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
+    vk::ImageCreateInfo textureImageCreateInfo(
+        {},
+        vk::ImageType::e2D,
+        vk::Format::eR8G8B8A8Unorm,
+        vk::Extent3D(picture.rows, picture.cols, 1),
+        1,
+        1,
+        vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
+        vk::SharingMode::eExclusive,
+        1,
+        &queueFamilyIndex,
+        vk::ImageLayout::eUndefined);
+    textureImage = device.createImage(textureImageCreateInfo);
+    vk::MemoryRequirements textureMemoryRequirements = device.getImageMemoryRequirements(textureImage);
+    vk::MemoryAllocateInfo textureImageMemoryAllocateInfo(
+        textureMemoryRequirements.size,
+        findMemoryType(textureMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+    textureImageMemory = device.allocateMemory(textureImageMemoryAllocateInfo);
+    device.bindImageMemory(textureImage, textureImageMemory, 0);
+
+    transitionImageLayout(textureImage, vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+    copyBufferToImage(stageBuffer, textureImage, picture.rows, picture.cols);
+    transitionImageLayout(textureImage, vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+
+    //free staging buffer
+    device.destroyBuffer(stageBuffer);
+    device.freeMemory(stageBufferMemory);
+
     //create descriptor pool
     vk::DescriptorPoolSize descriptorPoolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, static_cast<uint32_t>(swapChainImages.size()), 1, &descriptorPoolSize);
@@ -215,6 +267,9 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    device.destroyImage(textureImage);
+    device.freeMemory(textureImageMemory);
+
     for (uint32_t i = 0; i < uniformBuffers.size(); ++i)
     {
         device.destroyBuffer(uniformBuffers[i]);
@@ -274,17 +329,78 @@ std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize 
 
 void VulkanApp::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
 {
-    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
-    vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(allocInfo).front();
-    vk::CommandBufferBeginInfo beginInfo(vk::CommandBufferUsageFlagBits::eOneTimeSubmit, nullptr);
-    commandBuffer.begin(beginInfo);
+    vk::CommandBuffer commandBuffer = beginSingleTimeCommand();
     vk::BufferCopy copyRegion(0, 0, size);
     commandBuffer.copyBuffer(src, dst, copyRegion);
-    commandBuffer.end();
-    vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &commandBuffer, 0, nullptr);
+    endSingleTimeCommand(commandBuffer);
+}
+
+vk::CommandBuffer VulkanApp::beginSingleTimeCommand()
+{
+    vk::CommandBufferAllocateInfo allocInfo(commandPool, vk::CommandBufferLevel::ePrimary, 1);
+    vk::CommandBuffer commandBuffer = device.allocateCommandBuffers(allocInfo).front();
+    vk::CommandBufferBeginInfo beginInfo({}, nullptr);
+    commandBuffer.begin(beginInfo);
+    return commandBuffer;
+}
+
+void VulkanApp::endSingleTimeCommand(vk::CommandBuffer command)
+{
+    command.end();
+    vk::SubmitInfo submitInfo(0, nullptr, nullptr, 1, &command, 0, nullptr);
     graphicsQueue.submit(submitInfo, {});
     graphicsQueue.waitIdle();
-    device.freeCommandBuffers(commandPool, commandBuffer);
+    device.freeCommandBuffers(commandPool, command);
+}
+
+void VulkanApp::transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout)
+{
+    vk::CommandBuffer command = beginSingleTimeCommand();
+    vk::ImageSubresourceRange subRange(vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1);
+    vk::ImageMemoryBarrier barrier;
+    barrier.oldLayout = oldLayout;
+    barrier.newLayout = newLayout;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.image = image;
+    barrier.subresourceRange = subRange;
+    vk::PipelineStageFlags sourceStage;
+    vk::PipelineStageFlags destinationStage;
+    if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eTransferDstOptimal)
+    {
+        barrier.srcAccessMask = {};
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+        sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+        destinationStage = vk::PipelineStageFlagBits::eTransfer;
+    }
+    else if (oldLayout == vk::ImageLayout::eTransferDstOptimal && newLayout == vk::ImageLayout::eShaderReadOnlyOptimal)
+    {
+        barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite;
+        barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
+        sourceStage = vk::PipelineStageFlagBits::eTransfer;
+        destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
+    }
+    else
+    {
+        throw std::invalid_argument("unsupported layout transition!");
+    }
+    command.pipelineBarrier(sourceStage, destinationStage, {}, {}, {}, barrier);
+    endSingleTimeCommand(command);
+}
+
+void VulkanApp::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height)
+{
+    vk::CommandBuffer command = beginSingleTimeCommand();
+    vk::ImageSubresourceLayers imageSubresource(vk::ImageAspectFlagBits::eColor, 0, 0, 1);
+    vk::BufferImageCopy region(
+        0,
+        0,
+        0,
+        imageSubresource,
+        { 0,0,0 },
+        { width,height,1 });
+    command.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, region);
+    endSingleTimeCommand(command);
 }
 
 void VulkanApp::updateUniformBuffer(uint32_t imageIndex)
