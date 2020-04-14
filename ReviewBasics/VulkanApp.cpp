@@ -49,11 +49,18 @@ void VulkanApp::userInit()
         1,
         vk::ShaderStageFlagBits::eVertex,
         nullptr);
-    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, 1, &descriptorBinding);
+    vk::DescriptorSetLayoutBinding textureBinding(
+        1,
+        vk::DescriptorType::eCombinedImageSampler,
+        1,
+        vk::ShaderStageFlagBits::eFragment,
+        nullptr);
+    std::vector<vk::DescriptorSetLayoutBinding> uniformBindings{ descriptorBinding,textureBinding };
+    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(uniformBindings.size()), uniformBindings.data());
     descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 0, nullptr);
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
-    shader.createDefaultVFShader("./shaders/triangleWithUniformVert.spv", "./shaders/triangleWithUniformFrag.spv",
+    shader.createDefaultVFShader("./shaders/triangleWithTextureVert.spv", "./shaders/triangleWithTextureFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
     //create framebuffers
@@ -208,8 +215,14 @@ void VulkanApp::userInit()
     textureSampler = device.createSampler(samplerCreateInfo);
 
     //create descriptor pool
-    vk::DescriptorPoolSize descriptorPoolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
-    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, static_cast<uint32_t>(swapChainImages.size()), 1, &descriptorPoolSize);
+    vk::DescriptorPoolSize uniformBufferPoolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
+    vk::DescriptorPoolSize samplerPoolSize(vk::DescriptorType::eCombinedImageSampler, static_cast<uint32_t>(swapChainImages.size()));
+    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes{ uniformBufferPoolSize,samplerPoolSize };
+    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(
+        {},
+        static_cast<uint32_t>(swapChainImages.size()),
+        static_cast<uint32_t>(descriptorPoolSizes.size()),
+        descriptorPoolSizes.data());
     descriptorPool = device.createDescriptorPool(descriptorPoolCreateInfo);
 
     //create and configure descriptor sets
@@ -219,6 +232,7 @@ void VulkanApp::userInit()
     for (uint32_t i = 0; i < descriptorSets.size(); ++i)
     {
         vk::DescriptorBufferInfo descriptorBufferInfo(uniformBuffers[i], 0, sizeof(SimpleUniformObject));
+        vk::DescriptorImageInfo imageInfo(textureSampler, textureImageView, vk::ImageLayout::eShaderReadOnlyOptimal);
         vk::WriteDescriptorSet descriptorWrite(
             descriptorSets[i],
             0,
@@ -228,7 +242,17 @@ void VulkanApp::userInit()
             nullptr,
             &descriptorBufferInfo,
             nullptr);
-        device.updateDescriptorSets(descriptorWrite, {});
+        vk::WriteDescriptorSet textureSetWrite(
+            descriptorSets[i],
+            1,
+            0,
+            1,
+            vk::DescriptorType::eCombinedImageSampler,
+            &imageInfo,
+            nullptr,
+            nullptr);
+        std::vector<vk::WriteDescriptorSet> writeDescriptors{ descriptorWrite,textureSetWrite };
+        device.updateDescriptorSets(writeDescriptors, {});
     }
 
     //record command buffers

@@ -20,6 +20,7 @@ protected:
     {
         glm::vec2 position;
         glm::vec3 color;
+        glm::vec2 texCoord;
 
         static vk::VertexInputBindingDescription getBindingDescription()
         {
@@ -27,11 +28,12 @@ protected:
             return bindingDescription;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 2> getAttributeDescription()
+        static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription()
         {
             vk::VertexInputAttributeDescription vertexPosition{ 0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position) };
             vk::VertexInputAttributeDescription vertexColor{ 1,0,vk::Format::eR32G32B32A32Sfloat,offsetof(Vertex,color) };
-            return { vertexPosition,vertexColor };
+            vk::VertexInputAttributeDescription VertexTexCoord{ 2,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,texCoord) };
+            return { vertexPosition,vertexColor,VertexTexCoord };
         }
     };
 public:
@@ -75,10 +77,10 @@ private:
 
 
     constexpr static std::array<Vertex, 4> vertices{
-        Vertex{glm::vec2{-0.5f,-0.5f},glm::vec3{1.0f,0.0f,0.0f}},
-        Vertex{glm::vec2{0.5f,-0.5f},glm::vec3{0.0f,1.0f,0.0f}},
-        Vertex{glm::vec2{0.5f,0.5f},glm::vec3{0.0f,0.0f,1.0f}},
-        Vertex{glm::vec2{-0.5f,0.5f},glm::vec3{1.0f,1.0f,1.0f}}
+        Vertex{glm::vec2{-0.5f,-0.5f},glm::vec3{1.0f,0.0f,0.0f},glm::vec2{1.0f,0.0f}},
+        Vertex{glm::vec2{0.5f,-0.5f},glm::vec3{0.0f,1.0f,0.0f},glm::vec2{0.0f,0.0f}},
+        Vertex{glm::vec2{0.5f,0.5f},glm::vec3{0.0f,0.0f,1.0f},glm::vec2{0.0f,1.0f}},
+        Vertex{glm::vec2{-0.5f,0.5f},glm::vec3{1.0f,1.0f,1.0f},glm::vec2{1.0f,1.0f}}
     };
 
     constexpr static std::array<uint32_t, 6> indices{
