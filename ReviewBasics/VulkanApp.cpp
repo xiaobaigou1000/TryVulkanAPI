@@ -14,7 +14,9 @@ void VulkanApp::init()
 {
     window.init();
     context.init(window);
-    device = context.createLogicalDevice({ VK_KHR_SWAPCHAIN_EXTENSION_NAME }, {});
+    vk::PhysicalDeviceFeatures physicalDeviceFeature;
+    physicalDeviceFeature.setSamplerAnisotropy(VK_TRUE);
+    device = context.createLogicalDevice({ VK_KHR_SWAPCHAIN_EXTENSION_NAME }, physicalDeviceFeature);
     graphicsQueue = device.getQueue(context.getQueueFamilyIndex(), 0);
     swapChain.init(context, device, window.extent());
     swapChainHandle = swapChain.handle();
@@ -174,6 +176,37 @@ void VulkanApp::userInit()
     device.destroyBuffer(stageBuffer);
     device.freeMemory(stageBufferMemory);
 
+    //create texture image view
+    vk::ImageSubresourceRange subResource;
+    vk::ImageViewCreateInfo textureViewInfo(
+        {},
+        textureImage,
+        vk::ImageViewType::e2D,
+        vk::Format::eR8G8B8A8Unorm,
+        {},
+        { vk::ImageAspectFlagBits::eColor,0,1,0,1 });
+    textureImageView = device.createImageView(textureViewInfo);
+
+    //create texture sampler
+    vk::SamplerCreateInfo samplerCreateInfo(
+        {},
+        vk::Filter::eLinear,
+        vk::Filter::eLinear,
+        vk::SamplerMipmapMode::eLinear,
+        vk::SamplerAddressMode::eRepeat,
+        vk::SamplerAddressMode::eRepeat,
+        vk::SamplerAddressMode::eRepeat,
+        0.0f,
+        VK_TRUE,
+        16.0f,
+        VK_FALSE,
+        vk::CompareOp::eAlways,
+        0.0f,
+        0.0f,
+        vk::BorderColor::eIntOpaqueWhite,
+        VK_FALSE);
+    textureSampler = device.createSampler(samplerCreateInfo);
+
     //create descriptor pool
     vk::DescriptorPoolSize descriptorPoolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
     vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo({}, static_cast<uint32_t>(swapChainImages.size()), 1, &descriptorPoolSize);
@@ -267,6 +300,8 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    device.destroySampler(textureSampler);
+    device.destroyImageView(textureImageView);
     device.destroyImage(textureImage);
     device.freeMemory(textureImageMemory);
 

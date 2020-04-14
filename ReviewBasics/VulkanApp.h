@@ -98,6 +98,8 @@ private:
 
     vk::Image textureImage;
     vk::DeviceMemory textureImageMemory;
+    vk::ImageView textureImageView;
+    vk::Sampler textureSampler;
 
     void mainLoop();
 };
