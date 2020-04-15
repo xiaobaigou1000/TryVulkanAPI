@@ -7,6 +7,7 @@ class SimpleShaderPipeline
 public:
     void init(const vk::Device device, const vk::Extent2D windowExtent, const vk::Format framebufferFormat);
     void createColorOnlyRenderPass();
+    void createColorDepthRenderPass();
     void createDefaultVFShader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath,
         const vk::PipelineVertexInputStateCreateInfo vertexInput, const vk::PipelineLayoutCreateInfo pipelineLayout);
 

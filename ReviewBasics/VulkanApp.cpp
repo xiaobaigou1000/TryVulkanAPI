@@ -40,7 +40,7 @@ void VulkanApp::userInit()
 
     //create shader pipeline
     shader.init(device, swapChain.extent(), swapChain.imageFormat());
-    shader.createColorOnlyRenderPass();
+    shader.createColorDepthRenderPass();
     auto vertexBinding = Vertex::getBindingDescription();
     auto vertexAttribute = Vertex::getAttributeDescription();
     vk::DescriptorSetLayoutBinding descriptorBinding(

@@ -43,6 +43,66 @@ void SimpleShaderPipeline::createColorOnlyRenderPass()
     renderPass = device.createRenderPass(renderPassInfo);
 }
 
+void SimpleShaderPipeline::createColorDepthRenderPass()
+{
+    vk::AttachmentDescription colorAttachment(
+        {},
+        framebufferFormat,
+        vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eDontCare,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::ePresentSrcKHR);
+
+    vk::AttachmentDescription depthAttachment(
+        {},
+        {},//todo
+        vk::SampleCountFlagBits::e1,
+        vk::AttachmentLoadOp::eClear,
+        vk::AttachmentStoreOp::eStore,
+        vk::AttachmentLoadOp::eDontCare,
+        vk::AttachmentStoreOp::eDontCare,
+        vk::ImageLayout::eUndefined,
+        vk::ImageLayout::eDepthAttachmentOptimal);
+
+    vk::AttachmentReference colorAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
+    vk::AttachmentReference depthAttachmentRef(1, vk::ImageLayout::eDepthAttachmentOptimal);
+    vk::SubpassDescription subpass(
+        {},
+        vk::PipelineBindPoint::eGraphics,
+        0,
+        nullptr,
+        1,
+        &colorAttachmentRef,
+        nullptr,
+        &depthAttachmentRef,
+        0,
+        nullptr);
+
+    vk::SubpassDependency subDependency(
+        VK_SUBPASS_EXTERNAL,
+        0,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        vk::PipelineStageFlagBits::eColorAttachmentOutput,
+        {},
+        vk::AccessFlagBits::eColorAttachmentRead | vk::AccessFlagBits::eColorAttachmentWrite,
+        {});
+
+    std::vector<vk::AttachmentDescription> attachments{ colorAttachment,depthAttachment };
+    vk::RenderPassCreateInfo renderpassInfo(
+        {},
+        static_cast<uint32_t>(attachments.size()),
+        attachments.data(),
+        1,
+        &subpass,
+        1,
+        &subDependency);
+
+    renderPass = device.createRenderPass(renderpassInfo);
+}
+
 void SimpleShaderPipeline::createDefaultVFShader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath, const vk::PipelineVertexInputStateCreateInfo vertexInput, const vk::PipelineLayoutCreateInfo pipelineLayoutInfo)
 {
     vk::ShaderModule vertexShaderModule = createShaderModule(vertexShaderPath);
