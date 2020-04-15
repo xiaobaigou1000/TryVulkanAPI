@@ -5,7 +5,7 @@
 class SimpleShaderPipeline
 {
 public:
-    void init(const vk::Device device, const vk::Extent2D windowExtent, const vk::Format framebufferFormat);
+    void init(const vk::Device device, const vk::Extent2D windowExtent, const vk::Format framebufferFormat, const vk::Format depthStencilFormat);
     void createColorOnlyRenderPass();
     void createColorDepthRenderPass();
     void createDefaultVFShader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath,
@@ -27,6 +27,7 @@ private:
     vk::RenderPass renderPass;
 
     vk::Format framebufferFormat;
+    vk::Format depthStencilFormat;
     std::vector<vk::ShaderModule> shaderModules;
     std::vector<vk::PipelineShaderStageCreateInfo> shaderStages;
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo;

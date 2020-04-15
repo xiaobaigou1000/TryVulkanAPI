@@ -1,10 +1,11 @@
 #include "SimpleShaderPipeline.h"
 #include<fstream>
 
-void SimpleShaderPipeline::init(const vk::Device device, const vk::Extent2D windowExtent, const vk::Format framebufferFormat)
+void SimpleShaderPipeline::init(const vk::Device device, const vk::Extent2D windowExtent, const vk::Format framebufferFormat, const vk::Format depthStencilFormat)
 {
     this->device = device;
     this->framebufferFormat = framebufferFormat;
+    this->depthStencilFormat = depthStencilFormat;
 
     vertexInputInfo = vk::PipelineVertexInputStateCreateInfo({}, 0, nullptr, 0, nullptr);
     inputAssemblyInfo = vk::PipelineInputAssemblyStateCreateInfo({}, vk::PrimitiveTopology::eTriangleList, VK_FALSE);
