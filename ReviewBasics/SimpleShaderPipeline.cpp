@@ -66,10 +66,10 @@ void SimpleShaderPipeline::createColorDepthRenderPass()
         vk::AttachmentLoadOp::eDontCare,
         vk::AttachmentStoreOp::eDontCare,
         vk::ImageLayout::eUndefined,
-        vk::ImageLayout::eDepthAttachmentOptimal);
+        vk::ImageLayout::eDepthStencilAttachmentOptimal);
 
     vk::AttachmentReference colorAttachmentRef(0, vk::ImageLayout::eColorAttachmentOptimal);
-    vk::AttachmentReference depthAttachmentRef(1, vk::ImageLayout::eDepthAttachmentOptimal);
+    vk::AttachmentReference depthAttachmentRef(1, vk::ImageLayout::eDepthStencilAttachmentOptimal);
     vk::SubpassDescription subpass(
         {},
         vk::PipelineBindPoint::eGraphics,
@@ -102,6 +102,13 @@ void SimpleShaderPipeline::createColorDepthRenderPass()
         &subDependency);
 
     renderPass = device.createRenderPass(renderpassInfo);
+    depthStencilStateCreateInfo = vk::PipelineDepthStencilStateCreateInfo(
+        {},
+        VK_TRUE,
+        VK_TRUE,
+        vk::CompareOp::eLess,
+        VK_FALSE,
+        VK_FALSE);
 }
 
 void SimpleShaderPipeline::createDefaultVFShader(const std::string& vertexShaderPath, const std::string& fragmentShaderPath, const vk::PipelineVertexInputStateCreateInfo vertexInput, const vk::PipelineLayoutCreateInfo pipelineLayoutInfo)
@@ -127,7 +134,7 @@ void SimpleShaderPipeline::createPipeline()
         {}, static_cast<uint32_t>(shaderStages.size()), shaderStages.data(),
         &vertexInputInfo, &inputAssemblyInfo, nullptr,
         &viewportInfo, &rasterizer, &multisampleInfo,
-        nullptr, &colorBlendStateInfo, nullptr, pipelineLayout, renderPass, 0);
+        &depthStencilStateCreateInfo, &colorBlendStateInfo, nullptr, pipelineLayout, renderPass, 0);
 
     pipeline = device.createGraphicsPipeline({}, pipelineInfo);
 }

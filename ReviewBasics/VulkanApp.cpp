@@ -39,7 +39,12 @@ void VulkanApp::userInit()
     //code here
 
     //create shader pipeline
-    shader.init(device, swapChain.extent(), swapChain.imageFormat());
+    vk::Format depthImageFormat = context.findSupportedFormat(
+        { vk::Format::eD24UnormS8Uint,vk::Format::eD32SfloatS8Uint,vk::Format::eD32Sfloat },
+        vk::ImageTiling::eOptimal,
+        vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
+    shader.init(device, swapChain.extent(), swapChain.imageFormat(), depthImageFormat);
     shader.createColorDepthRenderPass();
     auto vertexBinding = Vertex::getBindingDescription();
     auto vertexAttribute = Vertex::getAttributeDescription();
@@ -63,20 +68,63 @@ void VulkanApp::userInit()
     shader.createDefaultVFShader("./shaders/triangleWithTextureUsing3DInputVert.spv", "./shaders/triangleWithTextureFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
-    //create framebuffers
-    swapChainColorOnlyFramebuffers.resize(swapChainImageViews.size());
-    for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
-    {
-        vk::FramebufferCreateInfo framebufferInfo({}, shader.getRenderPass(), 1, &swapChainImageViews[i], swapChain.extent().width, swapChain.extent().height, 1);
-        swapChainColorOnlyFramebuffers[i] = device.createFramebuffer(framebufferInfo);
-    }
-
     //create command pool and allocate command buffers
     vk::CommandPoolCreateInfo commandPoolInfo({}, context.getQueueFamilyIndex());
     commandPool = device.createCommandPool(commandPoolInfo);
     vk::CommandBufferAllocateInfo allocInfo(commandPool,
-        vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainColorOnlyFramebuffers.size()));
+        vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainImages.size()));
     commandBuffers = device.allocateCommandBuffers(allocInfo);
+
+    //create depth buffer resource
+    uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
+
+    vk::ImageCreateInfo depthImageCreateInfo(
+        {},
+        vk::ImageType::e2D,
+        depthImageFormat,
+        vk::Extent3D{ swapChain.extent().width,swapChain.extent().height,1 },
+        1, 1, vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::SharingMode::eExclusive,
+        1,
+        &queueFamilyIndex,
+        vk::ImageLayout::eUndefined);
+
+    depthImages.resize(swapChainImages.size());
+    depthImageViews.resize(swapChainImages.size());
+    depthImageMemorys.resize(swapChainImages.size());
+
+    for (uint32_t i = 0; i < depthImages.size(); i++)
+    {
+        depthImages[i] = device.createImage(depthImageCreateInfo);
+        vk::ImageViewCreateInfo depthImageViewInfo(
+            {},
+            depthImages[i],
+            vk::ImageViewType::e2D,
+            depthImageFormat,
+            {},
+            { vk::ImageAspectFlagBits::eDepth,0,1,0,1 });
+        depthImageMemorys[i] = allocateImageMemory(depthImages[i]);
+        depthImageViews[i] = device.createImageView(depthImageViewInfo);
+        transitionImageLayout(depthImages[i], depthImageFormat, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+    }
+
+    //create framebuffers
+    swapChainColorOnlyFramebuffers.resize(swapChainImageViews.size());
+    for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
+    {
+        std::vector<vk::ImageView> framebufferAttachments{ swapChainImageViews[i],depthImageViews[i] };
+        vk::FramebufferCreateInfo framebufferInfo(
+            {},
+            shader.getRenderPass(),
+            static_cast<uint32_t>(framebufferAttachments.size()),
+            framebufferAttachments.data(),
+            swapChain.extent().width,
+            swapChain.extent().height,
+            1);
+        swapChainColorOnlyFramebuffers[i] = device.createFramebuffer(framebufferInfo);
+    }
 
     //create vertex buffers
     vk::DeviceSize vertexBufferSize = vertices.size() * sizeof(Vertex);
@@ -152,7 +200,6 @@ void VulkanApp::userInit()
     device.unmapMemory(stageBufferMemory);
 
     //create texture VkImage
-    uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
     vk::ImageCreateInfo textureImageCreateInfo(
         {},
         vk::ImageType::e2D,
@@ -184,7 +231,6 @@ void VulkanApp::userInit()
     device.freeMemory(stageBufferMemory);
 
     //create texture image view
-    vk::ImageSubresourceRange subResource;
     vk::ImageViewCreateInfo textureViewInfo(
         {},
         textureImage,
@@ -260,10 +306,12 @@ void VulkanApp::userInit()
     {
         vk::CommandBufferBeginInfo beginInfo({}, nullptr);
         commandBuffers[i].begin(beginInfo);
-        vk::ClearValue black{ std::array<float,4>{ 0.0f,0.0f,0.0f,1.0f } };
+        std::array<vk::ClearValue, 2> clearValues{
+            vk::ClearColorValue{std::array<float,4>{ 0.0f,0.0f,0.0f,1.0f }},
+            vk::ClearDepthStencilValue{1.0f,0} };
         vk::RenderPassBeginInfo renderPassBeginInfo(shader.getRenderPass(),
             swapChainColorOnlyFramebuffers[i], { {0,0},swapChain.extent() },
-            1, &black);
+            static_cast<uint32_t>(clearValues.size()), clearValues.data());
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
         commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer, 1>{ vertexBuffer }, std::array<vk::DeviceSize, 1>{ 0 });
@@ -324,6 +372,13 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
+    for (uint32_t i = 0; i < depthImages.size(); i++)
+    {
+        device.destroyImage(depthImages[i]);
+        device.destroyImageView(depthImageViews[i]);
+        device.freeMemory(depthImageMemorys[i]);
+    }
+
     device.destroySampler(textureSampler);
     device.destroyImageView(textureImageView);
     device.destroyImage(textureImage);
@@ -439,6 +494,14 @@ void VulkanApp::transitionImageLayout(vk::Image image, vk::Format format, vk::Im
         sourceStage = vk::PipelineStageFlagBits::eTransfer;
         destinationStage = vk::PipelineStageFlagBits::eFragmentShader;
     }
+    else if (oldLayout == vk::ImageLayout::eUndefined && newLayout == vk::ImageLayout::eDepthStencilAttachmentOptimal)
+    {
+        barrier.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eDepth | vk::ImageAspectFlagBits::eStencil;
+        barrier.srcAccessMask = {};
+        barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
+        sourceStage = vk::PipelineStageFlagBits::eTopOfPipe;
+        destinationStage = vk::PipelineStageFlagBits::eTransfer;
+    }
     else
     {
         throw std::invalid_argument("unsupported layout transition!");
@@ -486,6 +549,17 @@ void VulkanApp::updateUniformBuffer(uint32_t imageIndex)
     void* data = device.mapMemory(uniformBufferMemorys[imageIndex], 0, sizeof(SimpleUniformObject));
     memcpy(data, &ubo, sizeof(SimpleUniformObject));
     device.unmapMemory(uniformBufferMemorys[imageIndex]);
+}
+
+vk::DeviceMemory VulkanApp::allocateImageMemory(vk::Image image)
+{
+    vk::MemoryRequirements memoryRequirement = device.getImageMemoryRequirements(image);
+    vk::MemoryAllocateInfo memoryAllocateInfo(
+        memoryRequirement.size,
+        findMemoryType(memoryRequirement.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+    vk::DeviceMemory memory = device.allocateMemory(memoryAllocateInfo);
+    device.bindImageMemory(image, memory, 0);
+    return memory;
 }
 
 void VulkanApp::mainLoop()

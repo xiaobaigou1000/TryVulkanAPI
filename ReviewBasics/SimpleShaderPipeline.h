@@ -40,6 +40,7 @@ private:
     vk::PipelineColorBlendAttachmentState colorBlendAttachmentInfo;
     vk::PipelineColorBlendStateCreateInfo colorBlendStateInfo;
     vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo;
+    vk::PipelineDepthStencilStateCreateInfo depthStencilStateCreateInfo;
 
     vk::ShaderModule createShaderModule(const std::string& filePath);
 };

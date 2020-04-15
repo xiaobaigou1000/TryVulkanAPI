@@ -23,6 +23,24 @@ void VulkanContext::destroy()
     instance.destroy();
 }
 
+vk::Format VulkanContext::findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
+{
+    for (auto i : candidates)
+    {
+        vk::FormatProperties props = physicalDevice.getFormatProperties(i);
+        if (tiling == vk::ImageTiling::eLinear && (props.linearTilingFeatures & features) == features)
+        {
+            return i;
+        }
+
+        if (tiling == vk::ImageTiling::eOptimal && (props.optimalTilingFeatures & features) == features)
+        {
+            return i;
+        }
+    }
+    throw std::runtime_error("no texture format suitable");
+}
+
 void VulkanContext::fillDebugMessengerCreateInfo()
 {
     vk::DebugUtilsMessageSeverityFlagsEXT severity =

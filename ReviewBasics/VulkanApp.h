@@ -110,9 +110,12 @@ private:
     vk::ImageView textureImageView;
     vk::Sampler textureSampler;
 
-    vk::Image depthImage;
-    vk::DeviceMemory depthImageMemory;
-    vk::ImageView depthImageView;
+    vk::Format depthImageFormat;
+    std::vector<vk::Image> depthImages;
+    std::vector<vk::DeviceMemory> depthImageMemorys;
+    std::vector<vk::ImageView> depthImageViews;
+
+    vk::DeviceMemory allocateImageMemory(vk::Image image);
 
     void mainLoop();
 };
