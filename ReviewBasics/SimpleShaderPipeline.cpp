@@ -59,7 +59,7 @@ void SimpleShaderPipeline::createColorDepthRenderPass()
 
     vk::AttachmentDescription depthAttachment(
         {},
-        {},//todo
+        depthStencilFormat,
         vk::SampleCountFlagBits::e1,
         vk::AttachmentLoadOp::eClear,
         vk::AttachmentStoreOp::eStore,
