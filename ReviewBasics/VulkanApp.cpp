@@ -60,7 +60,7 @@ void VulkanApp::userInit()
     descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
     vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 0, nullptr);
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
-    shader.createDefaultVFShader("./shaders/triangleWithTextureVert.spv", "./shaders/triangleWithTextureFrag.spv",
+    shader.createDefaultVFShader("./shaders/triangleWithTextureUsing3DInputVert.spv", "./shaders/triangleWithTextureFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
     //create framebuffers

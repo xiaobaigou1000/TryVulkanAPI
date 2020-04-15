@@ -3,6 +3,7 @@
 #include"VulkanContext.h"
 #include"EasyUseSwapChain.h"
 #include"SimpleShaderPipeline.h"
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include<glm.hpp>
 #include<gtc/matrix_transform.hpp>
 
@@ -18,7 +19,7 @@ protected:
 
     struct Vertex
     {
-        glm::vec2 position;
+        glm::vec3 position;
         glm::vec3 color;
         glm::vec2 texCoord;
 
@@ -30,7 +31,7 @@ protected:
 
         static std::array<vk::VertexInputAttributeDescription, 3> getAttributeDescription()
         {
-            vk::VertexInputAttributeDescription vertexPosition{ 0,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,position) };
+            vk::VertexInputAttributeDescription vertexPosition{ 0,0,vk::Format::eR32G32B32Sfloat,offsetof(Vertex,position) };
             vk::VertexInputAttributeDescription vertexColor{ 1,0,vk::Format::eR32G32B32A32Sfloat,offsetof(Vertex,color) };
             vk::VertexInputAttributeDescription VertexTexCoord{ 2,0,vk::Format::eR32G32Sfloat,offsetof(Vertex,texCoord) };
             return { vertexPosition,vertexColor,VertexTexCoord };
@@ -76,15 +77,21 @@ private:
     uint32_t current_frame = 0;
 
 
-    constexpr static std::array<Vertex, 4> vertices{
-        Vertex{glm::vec2{-0.5f,-0.5f},glm::vec3{1.0f,0.0f,0.0f},glm::vec2{1.0f,0.0f}},
-        Vertex{glm::vec2{0.5f,-0.5f},glm::vec3{0.0f,1.0f,0.0f},glm::vec2{0.0f,0.0f}},
-        Vertex{glm::vec2{0.5f,0.5f},glm::vec3{0.0f,0.0f,1.0f},glm::vec2{0.0f,1.0f}},
-        Vertex{glm::vec2{-0.5f,0.5f},glm::vec3{1.0f,1.0f,1.0f},glm::vec2{1.0f,1.0f}}
+    constexpr static std::array<Vertex, 8> vertices{
+        Vertex{glm::vec3{-0.5f,-0.5f,0.0f},glm::vec3{1.0f,0.0f,0.0f},glm::vec2{1.0f,0.0f}},
+        Vertex{glm::vec3{0.5f,-0.5f,0.0f},glm::vec3{0.0f,1.0f,0.0f},glm::vec2{0.0f,0.0f}},
+        Vertex{glm::vec3{0.5f,0.5f,0.0f},glm::vec3{0.0f,0.0f,1.0f},glm::vec2{0.0f,1.0f}},
+        Vertex{glm::vec3{-0.5f,0.5f,0.0f},glm::vec3{1.0f,1.0f,1.0f},glm::vec2{1.0f,1.0f}},
+
+        Vertex{glm::vec3{-0.5f,-0.5f,-0.5f},glm::vec3{1.0f,0.0f,0.0f},glm::vec2{1.0f,0.0f}},
+        Vertex{glm::vec3{0.5f,-0.5f,-0.5f},glm::vec3{0.0f,1.0f,0.0f},glm::vec2{0.0f,0.0f}},
+        Vertex{glm::vec3{0.5f,0.5f,-0.5f},glm::vec3{0.0f,0.0f,1.0f},glm::vec2{0.0f,1.0f}},
+        Vertex{glm::vec3{-0.5f,0.5f,-0.5f},glm::vec3{1.0f,1.0f,1.0f},glm::vec2{1.0f,1.0f}}
     };
 
-    constexpr static std::array<uint32_t, 6> indices{
-        0, 1, 2, 2, 3, 0
+    constexpr static std::array<uint32_t, 12> indices{
+        0, 1, 2, 2, 3, 0,
+        4, 5, 6, 6, 7, 4
     };
 
     vk::Buffer vertexBuffer;
@@ -102,6 +109,10 @@ private:
     vk::DeviceMemory textureImageMemory;
     vk::ImageView textureImageView;
     vk::Sampler textureSampler;
+
+    vk::Image depthImage;
+    vk::DeviceMemory depthImageMemory;
+    vk::ImageView depthImageView;
 
     void mainLoop();
 };
