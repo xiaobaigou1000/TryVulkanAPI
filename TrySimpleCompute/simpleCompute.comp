@@ -1,0 +1,13 @@
+#version 450
+layout(local_size_x = 1)in;
+
+layout(binding = 0) buffer InputBuffer
+{
+    float data[];
+}inBuf;
+
+void main()
+{
+    uint idx = gl_WorkGroupID.x;
+    inBuf.data[idx] = inBuf.data[idx] * inBuf.data[idx];
+}
