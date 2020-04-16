@@ -4,6 +4,10 @@
 
 Vulkan真*&($难
 
+#### 尝试拿compute shader算平方。。。
+
+![Example Image](./ExampleImages/Snipaste_2020-04-16_20-35-47.png)
+
 #### 带贴图还做了深度测试的方块块
 
 ![Example Image](./ExampleImages/Snipaste_2020-04-15_20-45-11.png)
