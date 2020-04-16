@@ -68,6 +68,9 @@ private:
     void transitionImageLayout(vk::Image image, vk::Format format, vk::ImageLayout oldLayout, vk::ImageLayout newLayout);
     void copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t width, uint32_t height);
 
+    vk::Format depthImageFormat;
+    void createDepthResources();
+
     //code here
     SimpleShaderPipeline shader;
     vk::DescriptorSetLayout descriptorSetLayout;

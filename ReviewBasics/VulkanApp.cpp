@@ -24,6 +24,9 @@ void VulkanApp::init()
     vk::CommandPoolCreateInfo commandPoolInfo({}, context.getQueueFamilyIndex());
     commandPool = device.createCommandPool(commandPoolInfo);
 
+    createDepthResources();
+    
+
     userInit();
 }
 
@@ -38,313 +41,54 @@ void VulkanApp::cleanup()
 
 void VulkanApp::userInit()
 {
+    //easy use functions
+
+    //must be called after shader creation
+    auto createFramebuffers = [this] {
+        swapChainFramebuffers.resize(swapChainImageViews.size());
+        for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
+        {
+            std::vector<vk::ImageView> framebufferAttachments{ swapChainImageViews[i],depthImageViews[i] };
+            vk::FramebufferCreateInfo framebufferInfo(
+                {},
+                shader.getRenderPass(),
+                static_cast<uint32_t>(framebufferAttachments.size()),
+                framebufferAttachments.data(),
+                swapChain.extent().width,
+                swapChain.extent().height,
+                1);
+            swapChainFramebuffers[i] = device.createFramebuffer(framebufferInfo);
+        }
+    };
+
+    auto allocateFrameBuffers = [this] {
+        vk::CommandBufferAllocateInfo allocInfo(commandPool,
+            vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainImages.size()));
+        commandBuffers = device.allocateCommandBuffers(allocInfo);
+    };
+
+    auto createSyncObjects = [this] {
+        max_images_in_flight = static_cast<uint32_t>(swapChainImages.size() - 1);
+        max_images_in_flight = std::max<uint32_t>(max_images_in_flight, 1);
+
+        imageAvailableSemaphore.resize(max_images_in_flight);
+        renderFinishedSemaphore.resize(max_images_in_flight);
+        inFlightFences.resize(max_images_in_flight);
+
+        vk::SemaphoreCreateInfo semaphoreCreateInfo;
+        vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
+        for (uint32_t i = 0; i < max_images_in_flight; ++i)
+        {
+            imageAvailableSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
+            renderFinishedSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
+            inFlightFences[i] = device.createFence(fenceCreateInfo);
+        }
+    };
+
     //code here
 
-    //create shader pipeline
-    vk::Format depthImageFormat = context.findSupportedFormat(
-        { vk::Format::eD24UnormS8Uint,vk::Format::eD32SfloatS8Uint,vk::Format::eD32Sfloat },
-        vk::ImageTiling::eOptimal,
-        vk::FormatFeatureFlagBits::eDepthStencilAttachment);
-
-    shader.init(device, swapChain.extent(), swapChain.imageFormat(), depthImageFormat);
-    shader.createColorDepthRenderPass();
-    auto vertexBinding = Vertex::getBindingDescription();
-    auto vertexAttribute = Vertex::getAttributeDescription();
-    vk::DescriptorSetLayoutBinding descriptorBinding(
-        0,
-        vk::DescriptorType::eUniformBuffer,
-        1,
-        vk::ShaderStageFlagBits::eVertex,
-        nullptr);
-    vk::DescriptorSetLayoutBinding textureBinding(
-        1,
-        vk::DescriptorType::eCombinedImageSampler,
-        1,
-        vk::ShaderStageFlagBits::eFragment,
-        nullptr);
-    std::vector<vk::DescriptorSetLayoutBinding> uniformBindings{ descriptorBinding,textureBinding };
-    vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(uniformBindings.size()), uniformBindings.data());
-    descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
-    vk::PushConstantRange pushConstRange(
-        vk::ShaderStageFlagBits::eVertex,
-        0,
-        sizeof(SimplePushConstant));
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 1, &pushConstRange);
-    vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
-    shader.createDefaultVFShader("./shaders/trianglePushConstant.spv", "./shaders/triangleWithTextureFrag.spv",
-        vertexInputInfo, pipelineLayoutInfo);
-
-    //create depth buffer resource
-    uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
-
-    vk::ImageCreateInfo depthImageCreateInfo(
-        {},
-        vk::ImageType::e2D,
-        depthImageFormat,
-        vk::Extent3D{ swapChain.extent().width,swapChain.extent().height,1 },
-        1, 1, vk::SampleCountFlagBits::e1,
-        vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eDepthStencilAttachment,
-        vk::SharingMode::eExclusive,
-        1,
-        &queueFamilyIndex,
-        vk::ImageLayout::eUndefined);
-
-    depthImages.resize(swapChainImages.size());
-    depthImageViews.resize(swapChainImages.size());
-    depthImageMemorys.resize(swapChainImages.size());
-
-    for (uint32_t i = 0; i < depthImages.size(); i++)
-    {
-        depthImages[i] = device.createImage(depthImageCreateInfo);
-        vk::ImageViewCreateInfo depthImageViewInfo(
-            {},
-            depthImages[i],
-            vk::ImageViewType::e2D,
-            depthImageFormat,
-            {},
-            { vk::ImageAspectFlagBits::eDepth,0,1,0,1 });
-        depthImageMemorys[i] = allocateImageMemory(depthImages[i]);
-        depthImageViews[i] = device.createImageView(depthImageViewInfo);
-        transitionImageLayout(depthImages[i], depthImageFormat, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
-    }
-
-    //create framebuffers
-    swapChainFramebuffers.resize(swapChainImageViews.size());
-    for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
-    {
-        std::vector<vk::ImageView> framebufferAttachments{ swapChainImageViews[i],depthImageViews[i] };
-        vk::FramebufferCreateInfo framebufferInfo(
-            {},
-            shader.getRenderPass(),
-            static_cast<uint32_t>(framebufferAttachments.size()),
-            framebufferAttachments.data(),
-            swapChain.extent().width,
-            swapChain.extent().height,
-            1);
-        swapChainFramebuffers[i] = device.createFramebuffer(framebufferInfo);
-    }
-
-    //create vertex buffers
-    vk::DeviceSize vertexBufferSize = vertices.size() * sizeof(Vertex);
-    vk::Buffer stageBuffer;
-    vk::DeviceMemory stageBufferMemory;
-    std::tie(stageBuffer, stageBufferMemory) = createBuffer(
-        vertexBufferSize,
-        vk::BufferUsageFlagBits::eTransferSrc,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-
-    void* data = device.mapMemory(stageBufferMemory, 0, vertexBufferSize);
-    memcpy(data, vertices.data(), vertexBufferSize);
-    device.unmapMemory(stageBufferMemory);
-
-    std::tie(vertexBuffer, vertexBufferMemory) = createBuffer(
-        vertexBufferSize,
-        vk::BufferUsageFlagBits::eTransferDst | vk::BufferUsageFlagBits::eVertexBuffer,
-        vk::MemoryPropertyFlagBits::eDeviceLocal);
-
-    copyBuffer(stageBuffer, vertexBuffer, vertexBufferSize);
-    device.destroyBuffer(stageBuffer);
-    device.freeMemory(stageBufferMemory);
-
-    //create index buffer
-    vk::DeviceSize indexBufferSize = indices.size() * sizeof(uint32_t);
-    std::tie(stageBuffer, stageBufferMemory) = createBuffer(
-        indexBufferSize,
-        vk::BufferUsageFlagBits::eTransferSrc,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
-
-    data = device.mapMemory(stageBufferMemory, 0, indexBufferSize);
-    memcpy(data, indices.data(), indexBufferSize);
-    device.unmapMemory(stageBufferMemory);
-
-    std::tie(indexBuffer, indexBufferMemory) = createBuffer(
-        indexBufferSize,
-        vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst,
-        vk::MemoryPropertyFlagBits::eDeviceLocal
-        );
-
-    copyBuffer(stageBuffer, indexBuffer, indexBufferSize);
-    device.destroyBuffer(stageBuffer);
-    device.freeMemory(stageBufferMemory);
-
-    //create uniform buffers
-    uniformBuffers.resize(swapChainImages.size());
-    uniformBufferMemorys.resize(swapChainImages.size());
-    for (uint32_t i = 0; i < uniformBuffers.size(); ++i)
-    {
-        vk::DeviceSize uboSize = sizeof(SimpleUniformObject);
-        std::tie(uniformBuffers[i], uniformBufferMemorys[i]) = createBuffer(
-            uboSize,
-            vk::BufferUsageFlagBits::eUniformBuffer,
-            vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-            );
-    }
-
-    //load texture image to stage buffer
-    cv::Mat rawPicture = cv::imread("./textures/dog.jpg");
-    cv::Mat picture;
-    cv::cvtColor(rawPicture, picture, cv::ColorConversionCodes::COLOR_BGR2RGBA);
-
-    void* pictureData = picture.data;
-    size_t elemSize = picture.elemSize();
-    size_t pictureSize = picture.total() * picture.elemSize();
-    std::tie(stageBuffer, stageBufferMemory) = createBuffer(
-        pictureSize,
-        vk::BufferUsageFlagBits::eTransferSrc,
-        vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent
-        );
-    data = device.mapMemory(stageBufferMemory, 0, pictureSize);
-    memcpy(data, pictureData, pictureSize);
-    device.unmapMemory(stageBufferMemory);
-
-    //create texture VkImage
-    vk::ImageCreateInfo textureImageCreateInfo(
-        {},
-        vk::ImageType::e2D,
-        vk::Format::eR8G8B8A8Unorm,
-        vk::Extent3D(picture.rows, picture.cols, 1),
-        1,
-        1,
-        vk::SampleCountFlagBits::e1,
-        vk::ImageTiling::eOptimal,
-        vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled,
-        vk::SharingMode::eExclusive,
-        1,
-        &queueFamilyIndex,
-        vk::ImageLayout::eUndefined);
-    textureImage = device.createImage(textureImageCreateInfo);
-    vk::MemoryRequirements textureMemoryRequirements = device.getImageMemoryRequirements(textureImage);
-    vk::MemoryAllocateInfo textureImageMemoryAllocateInfo(
-        textureMemoryRequirements.size,
-        context.findMemoryType(textureMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
-    textureImageMemory = device.allocateMemory(textureImageMemoryAllocateInfo);
-    device.bindImageMemory(textureImage, textureImageMemory, 0);
-
-    transitionImageLayout(textureImage, vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
-    copyBufferToImage(stageBuffer, textureImage, picture.rows, picture.cols);
-    transitionImageLayout(textureImage, vk::Format::eR8G8B8A8Unorm, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
-
-    //free staging buffer
-    device.destroyBuffer(stageBuffer);
-    device.freeMemory(stageBufferMemory);
-
-    //create texture image view
-    vk::ImageViewCreateInfo textureViewInfo(
-        {},
-        textureImage,
-        vk::ImageViewType::e2D,
-        vk::Format::eR8G8B8A8Unorm,
-        {},
-        { vk::ImageAspectFlagBits::eColor,0,1,0,1 });
-    textureImageView = device.createImageView(textureViewInfo);
-
-    //create texture sampler
-    vk::SamplerCreateInfo samplerCreateInfo(
-        {},
-        vk::Filter::eLinear,
-        vk::Filter::eLinear,
-        vk::SamplerMipmapMode::eLinear,
-        vk::SamplerAddressMode::eRepeat,
-        vk::SamplerAddressMode::eRepeat,
-        vk::SamplerAddressMode::eRepeat,
-        0.0f,
-        VK_TRUE,
-        16.0f,
-        VK_FALSE,
-        vk::CompareOp::eAlways,
-        0.0f,
-        0.0f,
-        vk::BorderColor::eIntOpaqueWhite,
-        VK_FALSE);
-    textureSampler = device.createSampler(samplerCreateInfo);
-
-    //create descriptor pool
-    vk::DescriptorPoolSize uniformBufferPoolSize(vk::DescriptorType::eUniformBuffer, static_cast<uint32_t>(swapChainImages.size()));
-    vk::DescriptorPoolSize samplerPoolSize(vk::DescriptorType::eCombinedImageSampler, static_cast<uint32_t>(swapChainImages.size()));
-    std::vector<vk::DescriptorPoolSize> descriptorPoolSizes{ uniformBufferPoolSize,samplerPoolSize };
-    vk::DescriptorPoolCreateInfo descriptorPoolCreateInfo(
-        {},
-        static_cast<uint32_t>(swapChainImages.size()),
-        static_cast<uint32_t>(descriptorPoolSizes.size()),
-        descriptorPoolSizes.data());
-    descriptorPool = device.createDescriptorPool(descriptorPoolCreateInfo);
-
-    //create and configure descriptor sets
-    std::vector<vk::DescriptorSetLayout> layouts(swapChainImages.size(), descriptorSetLayout);
-    vk::DescriptorSetAllocateInfo descriptorSetAllocateInfo(descriptorPool, static_cast<uint32_t>(layouts.size()), layouts.data());
-    descriptorSets = device.allocateDescriptorSets(descriptorSetAllocateInfo);
-    for (uint32_t i = 0; i < descriptorSets.size(); ++i)
-    {
-        vk::DescriptorBufferInfo descriptorBufferInfo(uniformBuffers[i], 0, sizeof(SimpleUniformObject));
-        vk::DescriptorImageInfo imageInfo(textureSampler, textureImageView, vk::ImageLayout::eShaderReadOnlyOptimal);
-        vk::WriteDescriptorSet descriptorWrite(
-            descriptorSets[i],
-            0,
-            0,
-            1,
-            vk::DescriptorType::eUniformBuffer,
-            nullptr,
-            &descriptorBufferInfo,
-            nullptr);
-        vk::WriteDescriptorSet textureSetWrite(
-            descriptorSets[i],
-            1,
-            0,
-            1,
-            vk::DescriptorType::eCombinedImageSampler,
-            &imageInfo,
-            nullptr,
-            nullptr);
-        std::vector<vk::WriteDescriptorSet> writeDescriptors{ descriptorWrite,textureSetWrite };
-        device.updateDescriptorSets(writeDescriptors, {});
-    }
-
-    //allocate command buffers
-    vk::CommandBufferAllocateInfo allocInfo(commandPool,
-        vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainImages.size()));
-    commandBuffers = device.allocateCommandBuffers(allocInfo);
-
-    //record command buffers
-    for (uint32_t i = 0; i < commandBuffers.size(); ++i)
-    {
-        vk::CommandBufferBeginInfo beginInfo({}, nullptr);
-        commandBuffers[i].begin(beginInfo);
-        std::array<vk::ClearValue, 2> clearValues{
-            vk::ClearColorValue{std::array<float,4>{ 0.0f,0.0f,0.0f,1.0f }},
-            vk::ClearDepthStencilValue{1.0f,0} };
-        vk::RenderPassBeginInfo renderPassBeginInfo(shader.getRenderPass(),
-            swapChainFramebuffers[i], { {0,0},swapChain.extent() },
-            static_cast<uint32_t>(clearValues.size()), clearValues.data());
-        commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
-        commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
-        SimplePushConstant pushConst;
-        pushConst.pushView = glm::lookAt(glm::vec3(2.0f, 3.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-        commandBuffers[i].pushConstants(shader.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(SimplePushConstant), &pushConst);
-        commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer, 1>{ vertexBuffer }, std::array<vk::DeviceSize, 1>{ 0 });
-        commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
-        commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, shader.getPipelineLayout(), 0, descriptorSets[i], {});
-        commandBuffers[i].drawIndexed(static_cast<uint32_t>(indices.size()), 1, 0, 0, 0);
-        commandBuffers[i].endRenderPass();
-        commandBuffers[i].end();
-    }
-
-    //create synchronize objects
-    max_images_in_flight = static_cast<uint32_t>(swapChainImages.size() - 1);
-    max_images_in_flight = std::max<uint32_t>(max_images_in_flight, 1);
-
-    imageAvailableSemaphore.resize(max_images_in_flight);
-    renderFinishedSemaphore.resize(max_images_in_flight);
-    inFlightFences.resize(max_images_in_flight);
-
-    vk::SemaphoreCreateInfo semaphoreCreateInfo;
-    vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
-    for (uint32_t i = 0; i < max_images_in_flight; ++i)
-    {
-        imageAvailableSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
-        renderFinishedSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
-        inFlightFences[i] = device.createFence(fenceCreateInfo);
-    }
+    
+    createSyncObjects();
 }
 
 void VulkanApp::userLoopFunc()
@@ -380,27 +124,6 @@ void VulkanApp::userDestroy()
 {
     //code here
 
-    device.destroySampler(textureSampler);
-    device.destroyImageView(textureImageView);
-    device.destroyImage(textureImage);
-    device.freeMemory(textureImageMemory);
-
-    for (uint32_t i = 0; i < uniformBuffers.size(); ++i)
-    {
-        device.destroyBuffer(uniformBuffers[i]);
-        device.freeMemory(uniformBufferMemorys[i]);
-    }
-
-    device.destroyDescriptorPool(descriptorPool);
-    device.destroyDescriptorSetLayout(descriptorSetLayout);
-
-    device.destroyBuffer(indexBuffer);
-    device.freeMemory(indexBufferMemory);
-
-    device.destroyBuffer(vertexBuffer);
-    device.freeMemory(vertexBufferMemory);
-
-    shader.destroy();
 
     //destroy frame buffers
     for (const auto i : swapChainFramebuffers)
@@ -522,6 +245,49 @@ void VulkanApp::copyBufferToImage(vk::Buffer buffer, vk::Image image, uint32_t w
         { width,height,1 });
     command.copyBufferToImage(buffer, image, vk::ImageLayout::eTransferDstOptimal, region);
     endSingleTimeCommand(command);
+}
+
+void VulkanApp::createDepthResources()
+{
+    depthImageFormat = context.findSupportedFormat(
+        { vk::Format::eD24UnormS8Uint,vk::Format::eD32SfloatS8Uint,vk::Format::eD32Sfloat },
+        vk::ImageTiling::eOptimal,
+        vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+
+    //create depth buffer resource
+    uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
+
+    vk::ImageCreateInfo depthImageCreateInfo(
+        {},
+        vk::ImageType::e2D,
+        depthImageFormat,
+        vk::Extent3D{ swapChain.extent().width,swapChain.extent().height,1 },
+        1, 1, vk::SampleCountFlagBits::e1,
+        vk::ImageTiling::eOptimal,
+        vk::ImageUsageFlagBits::eDepthStencilAttachment,
+        vk::SharingMode::eExclusive,
+        1,
+        &queueFamilyIndex,
+        vk::ImageLayout::eUndefined);
+
+    depthImages.resize(swapChainImages.size());
+    depthImageViews.resize(swapChainImages.size());
+    depthImageMemorys.resize(swapChainImages.size());
+
+    for (uint32_t i = 0; i < depthImages.size(); i++)
+    {
+        depthImages[i] = device.createImage(depthImageCreateInfo);
+        vk::ImageViewCreateInfo depthImageViewInfo(
+            {},
+            depthImages[i],
+            vk::ImageViewType::e2D,
+            depthImageFormat,
+            {},
+            { vk::ImageAspectFlagBits::eDepth,0,1,0,1 });
+        depthImageMemorys[i] = allocateImageMemory(depthImages[i]);
+        depthImageViews[i] = device.createImageView(depthImageViewInfo);
+        transitionImageLayout(depthImages[i], depthImageFormat, vk::ImageLayout::eUndefined, vk::ImageLayout::eDepthStencilAttachmentOptimal);
+    }
 }
 
 void VulkanApp::updateUniformBuffer(uint32_t imageIndex)
