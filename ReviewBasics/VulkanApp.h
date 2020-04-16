@@ -72,7 +72,7 @@ private:
     SimpleShaderPipeline shader;
     vk::DescriptorSetLayout descriptorSetLayout;
 
-    std::vector<vk::Framebuffer> swapChainColorOnlyFramebuffers;
+    std::vector<vk::Framebuffer> swapChainFramebuffers;
     vk::CommandPool commandPool;
     std::vector<vk::CommandBuffer> commandBuffers;
     std::vector<vk::Semaphore> imageAvailableSemaphore;

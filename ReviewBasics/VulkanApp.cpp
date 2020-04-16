@@ -110,7 +110,7 @@ void VulkanApp::userInit()
     }
 
     //create framebuffers
-    swapChainColorOnlyFramebuffers.resize(swapChainImageViews.size());
+    swapChainFramebuffers.resize(swapChainImageViews.size());
     for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
     {
         std::vector<vk::ImageView> framebufferAttachments{ swapChainImageViews[i],depthImageViews[i] };
@@ -122,7 +122,7 @@ void VulkanApp::userInit()
             swapChain.extent().width,
             swapChain.extent().height,
             1);
-        swapChainColorOnlyFramebuffers[i] = device.createFramebuffer(framebufferInfo);
+        swapChainFramebuffers[i] = device.createFramebuffer(framebufferInfo);
     }
 
     //create vertex buffers
@@ -314,7 +314,7 @@ void VulkanApp::userInit()
             vk::ClearColorValue{std::array<float,4>{ 0.0f,0.0f,0.0f,1.0f }},
             vk::ClearDepthStencilValue{1.0f,0} };
         vk::RenderPassBeginInfo renderPassBeginInfo(shader.getRenderPass(),
-            swapChainColorOnlyFramebuffers[i], { {0,0},swapChain.extent() },
+            swapChainFramebuffers[i], { {0,0},swapChain.extent() },
             static_cast<uint32_t>(clearValues.size()), clearValues.data());
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
@@ -379,12 +379,6 @@ void VulkanApp::userLoopFunc()
 void VulkanApp::userDestroy()
 {
     //code here
-    for (uint32_t i = 0; i < depthImages.size(); i++)
-    {
-        device.destroyImage(depthImages[i]);
-        device.destroyImageView(depthImageViews[i]);
-        device.freeMemory(depthImageMemorys[i]);
-    }
 
     device.destroySampler(textureSampler);
     device.destroyImageView(textureImageView);
@@ -406,6 +400,23 @@ void VulkanApp::userDestroy()
     device.destroyBuffer(vertexBuffer);
     device.freeMemory(vertexBufferMemory);
 
+    shader.destroy();
+
+    //destroy frame buffers
+    for (const auto i : swapChainFramebuffers)
+    {
+        device.destroyFramebuffer(i);
+    }
+
+    //destroy depth resources
+    for (uint32_t i = 0; i < depthImages.size(); i++)
+    {
+        device.destroyImage(depthImages[i]);
+        device.destroyImageView(depthImageViews[i]);
+        device.freeMemory(depthImageMemorys[i]);
+    }
+
+    //destroy synchronize objects
     for (uint32_t i = 0; i < inFlightFences.size(); ++i)
     {
         device.destroySemaphore(imageAvailableSemaphore[i]);
@@ -413,12 +424,8 @@ void VulkanApp::userDestroy()
         device.destroyFence(inFlightFences[i]);
     }
 
+    //destroy command pool
     device.destroyCommandPool(commandPool);
-    for (const auto i : swapChainColorOnlyFramebuffers)
-    {
-        device.destroyFramebuffer(i);
-    }
-    shader.destroy();
 }
 
 std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
