@@ -17,6 +17,11 @@ protected:
         glm::mat4 project;
     };
 
+    struct SimplePushConstant
+    {
+        glm::mat4 pushView;
+    };
+
     struct Vertex
     {
         glm::vec3 position;

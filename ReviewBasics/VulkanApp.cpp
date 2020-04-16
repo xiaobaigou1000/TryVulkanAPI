@@ -63,9 +63,13 @@ void VulkanApp::userInit()
     std::vector<vk::DescriptorSetLayoutBinding> uniformBindings{ descriptorBinding,textureBinding };
     vk::DescriptorSetLayoutCreateInfo descriptorSetLayoutCreateInfo({}, static_cast<uint32_t>(uniformBindings.size()), uniformBindings.data());
     descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetLayoutCreateInfo);
-    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 0, nullptr);
+    vk::PushConstantRange pushConstRange(
+        vk::ShaderStageFlagBits::eVertex,
+        0,
+        sizeof(SimplePushConstant));
+    vk::PipelineLayoutCreateInfo pipelineLayoutInfo({}, 1, &descriptorSetLayout, 1, &pushConstRange);
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
-    shader.createDefaultVFShader("./shaders/triangleWithTextureUsing3DInputVert.spv", "./shaders/triangleWithTextureFrag.spv",
+    shader.createDefaultVFShader("./shaders/trianglePushConstant.spv", "./shaders/triangleWithTextureFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
 
     //create command pool and allocate command buffers
@@ -314,6 +318,9 @@ void VulkanApp::userInit()
             static_cast<uint32_t>(clearValues.size()), clearValues.data());
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);
         commandBuffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, shader.getPipeline());
+        SimplePushConstant pushConst;
+        pushConst.pushView = glm::lookAt(glm::vec3(2.0f, 3.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
+        commandBuffers[i].pushConstants(shader.getPipelineLayout(), vk::ShaderStageFlagBits::eVertex, 0, sizeof(SimplePushConstant), &pushConst);
         commandBuffers[i].bindVertexBuffers(0, std::array<vk::Buffer, 1>{ vertexBuffer }, std::array<vk::DeviceSize, 1>{ 0 });
         commandBuffers[i].bindIndexBuffer(indexBuffer, 0, vk::IndexType::eUint32);
         commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, shader.getPipelineLayout(), 0, descriptorSets[i], {});
