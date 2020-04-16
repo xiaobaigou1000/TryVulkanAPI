@@ -21,6 +21,8 @@ void VulkanApp::init()
     swapChain.init(context, device, window.extent());
     swapChainHandle = swapChain.handle();
     std::tie(swapChainImages, swapChainImageViews) = swapChain.getSwapChainImages();
+    vk::CommandPoolCreateInfo commandPoolInfo({}, context.getQueueFamilyIndex());
+    commandPool = device.createCommandPool(commandPoolInfo);
 
     userInit();
 }
@@ -71,13 +73,6 @@ void VulkanApp::userInit()
     vk::PipelineVertexInputStateCreateInfo vertexInputInfo{ {},1,&vertexBinding,static_cast<uint32_t>(vertexAttribute.size()),vertexAttribute.data() };
     shader.createDefaultVFShader("./shaders/trianglePushConstant.spv", "./shaders/triangleWithTextureFrag.spv",
         vertexInputInfo, pipelineLayoutInfo);
-
-    //create command pool and allocate command buffers
-    vk::CommandPoolCreateInfo commandPoolInfo({}, context.getQueueFamilyIndex());
-    commandPool = device.createCommandPool(commandPoolInfo);
-    vk::CommandBufferAllocateInfo allocInfo(commandPool,
-        vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainImages.size()));
-    commandBuffers = device.allocateCommandBuffers(allocInfo);
 
     //create depth buffer resource
     uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
@@ -222,7 +217,7 @@ void VulkanApp::userInit()
     vk::MemoryRequirements textureMemoryRequirements = device.getImageMemoryRequirements(textureImage);
     vk::MemoryAllocateInfo textureImageMemoryAllocateInfo(
         textureMemoryRequirements.size,
-        findMemoryType(textureMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+        context.findMemoryType(textureMemoryRequirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
     textureImageMemory = device.allocateMemory(textureImageMemoryAllocateInfo);
     device.bindImageMemory(textureImage, textureImageMemory, 0);
 
@@ -304,6 +299,11 @@ void VulkanApp::userInit()
         std::vector<vk::WriteDescriptorSet> writeDescriptors{ descriptorWrite,textureSetWrite };
         device.updateDescriptorSets(writeDescriptors, {});
     }
+
+    //allocate command buffers
+    vk::CommandBufferAllocateInfo allocInfo(commandPool,
+        vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainImages.size()));
+    commandBuffers = device.allocateCommandBuffers(allocInfo);
 
     //record command buffers
     for (uint32_t i = 0; i < commandBuffers.size(); ++i)
@@ -421,28 +421,13 @@ void VulkanApp::userDestroy()
     shader.destroy();
 }
 
-uint32_t VulkanApp::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
-{
-    vk::PhysicalDeviceMemoryProperties memoryProperties = context.getPhysicalDeviceHandle().getMemoryProperties();
-    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
-    {
-        bool memoryTypeSupport = typeFilter & (1 << i);
-        bool memoryPropertySupport = (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties;
-        if (memoryTypeSupport && memoryPropertySupport)
-        {
-            return i;
-        }
-    }
-    throw std::runtime_error("no memory type supported.");
-}
-
 std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
 {
     uint32_t queueFamilyIndex = context.getQueueFamilyIndex();
     vk::BufferCreateInfo bufferCreateInfo({}, size, usage, vk::SharingMode::eExclusive, 1, &queueFamilyIndex);
     vk::Buffer buffer = device.createBuffer(bufferCreateInfo);
     vk::MemoryRequirements memoryRequirements = device.getBufferMemoryRequirements(buffer);
-    vk::MemoryAllocateInfo memoryAllocInfo(memoryRequirements.size, findMemoryType(memoryRequirements.memoryTypeBits, properties));
+    vk::MemoryAllocateInfo memoryAllocInfo(memoryRequirements.size, context.findMemoryType(memoryRequirements.memoryTypeBits, properties));
     vk::DeviceMemory memory = device.allocateMemory(memoryAllocInfo);
     device.bindBufferMemory(buffer, memory, 0);
     return { buffer,memory };
@@ -563,7 +548,7 @@ vk::DeviceMemory VulkanApp::allocateImageMemory(vk::Image image)
     vk::MemoryRequirements memoryRequirement = device.getImageMemoryRequirements(image);
     vk::MemoryAllocateInfo memoryAllocateInfo(
         memoryRequirement.size,
-        findMemoryType(memoryRequirement.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
+        context.findMemoryType(memoryRequirement.memoryTypeBits, vk::MemoryPropertyFlagBits::eDeviceLocal));
     vk::DeviceMemory memory = device.allocateMemory(memoryAllocateInfo);
     device.bindImageMemory(image, memory, 0);
     return memory;

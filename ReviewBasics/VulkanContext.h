@@ -21,6 +21,7 @@ public:
     void createWindowSurface(const NativeWindow& window);
     void destroy();
 
+    uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
 private:
     vk::Instance instance;

@@ -23,6 +23,21 @@ void VulkanContext::destroy()
     instance.destroy();
 }
 
+uint32_t VulkanContext::findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties)
+{
+    vk::PhysicalDeviceMemoryProperties memoryProperties = physicalDevice.getMemoryProperties();
+    for (uint32_t i = 0; i < memoryProperties.memoryTypeCount; ++i)
+    {
+        bool memoryTypeSupport = typeFilter & (1 << i);
+        bool memoryPropertySupport = (memoryProperties.memoryTypes[i].propertyFlags & properties) == properties;
+        if (memoryTypeSupport && memoryPropertySupport)
+        {
+            return i;
+        }
+    }
+    throw std::runtime_error("no memory type supported.");
+}
+
 vk::Format VulkanContext::findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features)
 {
     for (auto i : candidates)
