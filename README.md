@@ -4,6 +4,10 @@
 
 Vulkan真*&($难
 
+#### 使用GPU减速的Gauss–Seidel method
+
+![Example Image](./ExampleImages/Snipaste_2020-04-17_20-11-12.png)
+
 #### 尝试拿compute shader算平方。。。
 
 ![Example Image](./ExampleImages/Snipaste_2020-04-16_20-35-47.png)
