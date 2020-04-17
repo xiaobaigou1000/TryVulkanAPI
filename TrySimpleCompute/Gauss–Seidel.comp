@@ -1,0 +1,38 @@
+#version 450
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1)in;
+
+layout(binding = 0) buffer DLInverse
+{
+    float data[];
+}dlinvMat;
+
+layout(binding = 1) buffer UpperTriangular
+{
+    float data[];
+}utMat;
+
+layout(binding = 2) buffer XkAndB
+{
+    float data[];
+}xkab;
+
+layout(binding = 3) buffer Result
+{
+    float data[];
+}result;
+
+void main()
+{
+    float uxk = 0.0f;
+    for(int i = 0; i < gl_NumWorkGroups.x; i++)
+    {
+        uxk += utMat.data[gl_NumWorkGroups.x * i + gl_WorkGroupID.x] * xkab.data[i];
+    }
+    result.data[gl_WorkGroupID.x] = xkab.data[gl_NumWorkGroups.x + gl_WorkGroupID.x] - uxk;
+    float temp = 0.0f;
+    for(int i = 0; i < gl_NumWorkGroups.x; i++)
+    {
+        temp += dlinvMat.data[gl_NumWorkGroups.x * i + gl_WorkGroupID.x] * result.data[i];
+    }
+    result.data[gl_WorkGroupID.x] = temp;
+}
