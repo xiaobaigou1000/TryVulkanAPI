@@ -4,6 +4,7 @@
 #include<opencv2/core.hpp>
 #include<opencv2/imgcodecs.hpp>
 #include<opencv2/imgproc.hpp>
+#include<iostream>
 
 void VulkanApp::run()
 {
@@ -25,7 +26,6 @@ void VulkanApp::init()
     commandPool = device.createCommandPool(commandPoolInfo);
 
     createDepthResources();
-    
 
     userInit();
 }
@@ -33,122 +33,26 @@ void VulkanApp::init()
 void VulkanApp::cleanup()
 {
     userDestroy();
+    for (auto i : depthImages)
+    {
+        device.destroyImage(i);
+    }
+
+    for (auto i : depthImageViews)
+    {
+        device.destroyImageView(i);
+    }
+
+    for (auto i : depthImageMemorys)
+    {
+        device.freeMemory(i);
+    }
+
+    device.destroyCommandPool(commandPool);
     swapChain.destroy();
     device.destroy();
     context.destroy();
     window.destroy();
-}
-
-void VulkanApp::userInit()
-{
-    //easy use functions
-
-    //must be called after shader creation
-    auto createFramebuffers = [this] {
-        swapChainFramebuffers.resize(swapChainImageViews.size());
-        for (uint32_t i = 0; i < swapChainImageViews.size(); ++i)
-        {
-            std::vector<vk::ImageView> framebufferAttachments{ swapChainImageViews[i],depthImageViews[i] };
-            vk::FramebufferCreateInfo framebufferInfo(
-                {},
-                shader.getRenderPass(),
-                static_cast<uint32_t>(framebufferAttachments.size()),
-                framebufferAttachments.data(),
-                swapChain.extent().width,
-                swapChain.extent().height,
-                1);
-            swapChainFramebuffers[i] = device.createFramebuffer(framebufferInfo);
-        }
-    };
-
-    auto allocateFrameBuffers = [this] {
-        vk::CommandBufferAllocateInfo allocInfo(commandPool,
-            vk::CommandBufferLevel::ePrimary, static_cast<uint32_t>(swapChainImages.size()));
-        commandBuffers = device.allocateCommandBuffers(allocInfo);
-    };
-
-    auto createSyncObjects = [this] {
-        max_images_in_flight = static_cast<uint32_t>(swapChainImages.size() - 1);
-        max_images_in_flight = std::max<uint32_t>(max_images_in_flight, 1);
-
-        imageAvailableSemaphore.resize(max_images_in_flight);
-        renderFinishedSemaphore.resize(max_images_in_flight);
-        inFlightFences.resize(max_images_in_flight);
-
-        vk::SemaphoreCreateInfo semaphoreCreateInfo;
-        vk::FenceCreateInfo fenceCreateInfo(vk::FenceCreateFlagBits::eSignaled);
-        for (uint32_t i = 0; i < max_images_in_flight; ++i)
-        {
-            imageAvailableSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
-            renderFinishedSemaphore[i] = device.createSemaphore(semaphoreCreateInfo);
-            inFlightFences[i] = device.createFence(fenceCreateInfo);
-        }
-    };
-
-    //code here
-
-    
-    createSyncObjects();
-}
-
-void VulkanApp::userLoopFunc()
-{
-    //code here
-    device.waitForFences(1, &inFlightFences[current_frame], VK_TRUE, (std::numeric_limits<uint32_t>::max)());
-    device.resetFences(1, &inFlightFences[current_frame]);
-
-    auto frameIndex = device.acquireNextImageKHR(
-        swapChainHandle, (std::numeric_limits<uint32_t>::max)(), imageAvailableSemaphore[current_frame], {});
-
-    updateUniformBuffer(frameIndex.value);
-
-    vk::PipelineStageFlags waitStages = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-
-    vk::SubmitInfo submitInfo(
-        1, &imageAvailableSemaphore[current_frame], &waitStages,
-        1, &commandBuffers[frameIndex.value],
-        1, &renderFinishedSemaphore[current_frame]);
-
-    graphicsQueue.submit(submitInfo, inFlightFences[current_frame]);
-
-    vk::PresentInfoKHR presentInfo(
-        1, &renderFinishedSemaphore[current_frame],
-        1, &swapChainHandle, &frameIndex.value, nullptr);
-
-    graphicsQueue.presentKHR(presentInfo);
-
-    current_frame = (current_frame + 1) % max_images_in_flight;
-}
-
-void VulkanApp::userDestroy()
-{
-    //code here
-
-
-    //destroy frame buffers
-    for (const auto i : swapChainFramebuffers)
-    {
-        device.destroyFramebuffer(i);
-    }
-
-    //destroy depth resources
-    for (uint32_t i = 0; i < depthImages.size(); i++)
-    {
-        device.destroyImage(depthImages[i]);
-        device.destroyImageView(depthImageViews[i]);
-        device.freeMemory(depthImageMemorys[i]);
-    }
-
-    //destroy synchronize objects
-    for (uint32_t i = 0; i < inFlightFences.size(); ++i)
-    {
-        device.destroySemaphore(imageAvailableSemaphore[i]);
-        device.destroySemaphore(renderFinishedSemaphore[i]);
-        device.destroyFence(inFlightFences[i]);
-    }
-
-    //destroy command pool
-    device.destroyCommandPool(commandPool);
 }
 
 std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
@@ -290,32 +194,6 @@ void VulkanApp::createDepthResources()
     }
 }
 
-void VulkanApp::updateUniformBuffer(uint32_t imageIndex)
-{
-    using glm::mat4;
-    using glm::vec3;
-    using glm::rotate;
-    using glm::translate;
-    using glm::scale;
-    using glm::lookAt;
-    using glm::perspective;
-    using glm::radians;
-
-    static auto startTime = std::chrono::high_resolution_clock::now();
-    float time =
-        std::chrono::duration_cast<std::chrono::duration<float, std::ratio<1>>>(
-            std::chrono::high_resolution_clock::now() - startTime).count();
-
-    SimpleUniformObject ubo;
-    ubo.model = rotate(mat4(1.0f), time * radians(60.0f), vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = lookAt(vec3(2.0f, 2.0f, 2.0f), vec3(0.0f, 0.0f, 0.0f), vec3(0.0f, 0.0f, 1.0f));
-    ubo.project = perspective(radians(45.0f), float(swapChain.extent().width) / float(swapChain.extent().height), 0.1f, 10.0f);
-    ubo.project[1][1] *= -1;
-    void* data = device.mapMemory(uniformBufferMemorys[imageIndex], 0, sizeof(SimpleUniformObject));
-    memcpy(data, &ubo, sizeof(SimpleUniformObject));
-    device.unmapMemory(uniformBufferMemorys[imageIndex]);
-}
-
 vk::DeviceMemory VulkanApp::allocateImageMemory(vk::Image image)
 {
     vk::MemoryRequirements memoryRequirement = device.getImageMemoryRequirements(image);
@@ -335,4 +213,22 @@ void VulkanApp::mainLoop()
         userLoopFunc();
     }
     graphicsQueue.waitIdle();
+}
+
+void VulkanApp::userInit()
+{
+    std::cout << "vulkan app user init\n";
+    std::cout << "this is and default init function, do you forget to override it?\n";
+}
+
+void VulkanApp::userLoopFunc()
+{
+    std::cout << "vulkan app user loop\n";
+    std::cout << "this is and default loop function, do you forget to override it?\n";
+}
+
+void VulkanApp::userDestroy()
+{
+    std::cout << "vulkan app user destroy\n";
+    std::cout << "this is and default destroy function, do you forget to override it?\n";
 }

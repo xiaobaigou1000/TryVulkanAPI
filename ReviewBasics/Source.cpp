@@ -1,9 +1,9 @@
 #include<iostream>
-#include"VulkanApp.h"
+#include"MyVulkanApp.h"
 
 int main()
 {
-    VulkanApp app;
+    MyVulkanApp app;
     app.init();
     app.run();
     app.cleanup();

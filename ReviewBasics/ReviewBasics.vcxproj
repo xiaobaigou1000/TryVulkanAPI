@@ -155,6 +155,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="EasyUseSwapChain.cpp" />
+    <ClCompile Include="MyVulkanApp.cpp" />
     <ClCompile Include="NativeWindow.cpp" />
     <ClCompile Include="SimpleShaderPipeline.cpp" />
     <ClCompile Include="Source.cpp" />
@@ -163,6 +164,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="EasyUseSwapChain.h" />
+    <ClInclude Include="MyVulkanApp.h" />
     <ClInclude Include="NativeWindow.h" />
     <ClInclude Include="SimpleShaderPipeline.h" />
     <ClInclude Include="VulkanApp.h" />
