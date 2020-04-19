@@ -67,6 +67,17 @@ std::tuple<vk::Buffer, vk::DeviceMemory> VulkanApp::createBuffer(vk::DeviceSize 
     return { buffer,memory };
 }
 
+std::tuple<vk::Buffer, vk::DeviceMemory, vk::DeviceSize> VulkanApp::createBufferForArrayObjects(vk::DeviceSize singleObjectSize, vk::DeviceSize numOfObjects, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties)
+{
+    auto minOffset = context.getPhysicalDeviceProperties().limits.minUniformBufferOffsetAlignment;
+    vk::DeviceSize offset = (singleObjectSize / minOffset + 1) * minOffset;
+    vk::DeviceSize wholeBufferSize = offset * numOfObjects;
+    vk::Buffer buffer;
+    vk::DeviceMemory memory;
+    std::tie(buffer, memory) = createBuffer(wholeBufferSize, usage, properties);
+    return { buffer,memory,offset };
+}
+
 void VulkanApp::copyBuffer(vk::Buffer src, vk::Buffer dst, vk::DeviceSize size)
 {
     vk::CommandBuffer commandBuffer = beginSingleTimeCommand();

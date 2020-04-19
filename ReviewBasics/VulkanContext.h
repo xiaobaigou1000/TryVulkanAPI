@@ -23,6 +23,7 @@ public:
 
     uint32_t findMemoryType(uint32_t typeFilter, vk::MemoryPropertyFlags properties);
     vk::Format findSupportedFormat(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+    inline vk::PhysicalDeviceProperties getPhysicalDeviceProperties() { return physicalDevice.getProperties(); };
 private:
     vk::Instance instance;
     vk::PhysicalDevice physicalDevice;
