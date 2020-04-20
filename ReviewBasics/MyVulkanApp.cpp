@@ -3,8 +3,8 @@
 
 std::tuple<std::vector<Vertex>, std::vector<uint32_t>> CreateTorusMesh(float outerRadius, float innerRadius, uint32_t nsides, uint32_t nrings)
 {
-    uint32_t faces = nsides * nrings;
-    int nVerts = nsides * (nrings + 1);   // One extra ring to duplicate first ring
+    size_t faces = nsides * nrings;
+    size_t nVerts = nsides * (nrings + 1);   // One extra ring to duplicate first ring
 
     // Points
     std::vector<float> p(3 * nVerts);
@@ -18,7 +18,7 @@ std::tuple<std::vector<Vertex>, std::vector<uint32_t>> CreateTorusMesh(float out
     // Generate the vertex data
     float ringFactor = glm::two_pi<float>() / nrings;
     float sideFactor = glm::two_pi<float>() / nsides;
-    int idx = 0, tidx = 0;
+    size_t idx = 0, tidx = 0;
     for (uint32_t ring = 0; ring <= nrings; ring++) {
         float u = ring * ringFactor;
         float cu = cos(u);
@@ -97,16 +97,19 @@ void MyVulkanApp::userInit()
 
     std::vector<vk::DescriptorSetLayoutBinding> descriptorSetLayoutBinding;
     descriptorSetLayoutBinding.push_back({ 0,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex });
-    descriptorSetLayoutBinding.push_back({ 1,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eVertex });
+    descriptorSetLayoutBinding.push_back({ 1,vk::DescriptorType::eUniformBuffer,1,vk::ShaderStageFlagBits::eFragment });
     vk::DescriptorSetLayoutCreateInfo descriptorSetlayoutCreateInfo(
         {},
         2, descriptorSetLayoutBinding.data());
     descriptorSetLayout = device.createDescriptorSetLayout(descriptorSetlayoutCreateInfo);
+
+    vk::PushConstantRange pushConstantRange(vk::ShaderStageFlagBits::eFragment, 0, 2 * sizeof(float));
+
     vk::PipelineLayoutCreateInfo pipelineLayoutCreateInfo(
         {},
         1, &descriptorSetLayout,
-        0, nullptr);
-    shader.createDefaultVFShader("./shaders/phongShaderVert.spv", "./shaders/phongShaderFrag.spv",
+        1, &pushConstantRange);
+    shader.createDefaultVFShader("./shaders/cartoonShaderVert.spv", "./shaders/cartoonShaderFrag.spv",
         vertexInputInfo, pipelineLayoutCreateInfo);
 
     //init framebuffers
@@ -173,6 +176,7 @@ void MyVulkanApp::userInit()
     lu.lightPosition = camera.view * glm::vec4(5.0f, 5.0f, 2.0f, 1.0f);
     lu.Kd = glm::vec4(0.9f, 0.5f, 0.3f, 0.0f);
     lu.Ld = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
+    lu.Ka = 0.1f * lu.Kd;
 
     vk::DeviceSize uniformObjectSize = sizeof(CameraUniform) + sizeof(LightUniform);
     lightUniformOffset = sizeof(CameraUniform);
@@ -242,6 +246,7 @@ void MyVulkanApp::userInit()
         commandBuffers[i].bindVertexBuffers(0, vertexIndexBuffer, { 0 });
         commandBuffers[i].bindIndexBuffer(vertexIndexBuffer, indexOffset, vk::IndexType::eUint32);
         commandBuffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, shader.getPipelineLayout(), 0, descriptorSets[i], {});
+        commandBuffers[i].pushConstants<float>(shader.getPipelineLayout(), vk::ShaderStageFlagBits::eFragment, 0, { 4.0f,1 / 4.0f });
         commandBuffers[i].drawIndexed(indices.size(), 1, 0, 0, 0);
         commandBuffers[i].endRenderPass();
         commandBuffers[i].end();

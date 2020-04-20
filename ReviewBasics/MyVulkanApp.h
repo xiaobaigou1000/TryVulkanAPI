@@ -28,6 +28,7 @@ public:
         glm::vec4 lightPosition;
         glm::vec4 Kd;
         glm::vec4 Ld;
+        glm::vec4 Ka;
     };
 
     struct CameraProperty
