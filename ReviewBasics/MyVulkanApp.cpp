@@ -109,7 +109,7 @@ void MyVulkanApp::userInit()
         {},
         1, &descriptorSetLayout,
         1, &pushConstantRange);
-    shader.createDefaultVFShader("./shaders/cartoonShaderVert.spv", "./shaders/cartoonShaderFrag.spv",
+    shader.createDefaultVFShader("./shaders/cartoonShaderVert.spv", "./shaders/fogShaderFrag.spv",
         vertexInputInfo, pipelineLayoutCreateInfo);
 
     //init framebuffers
@@ -177,6 +177,7 @@ void MyVulkanApp::userInit()
     lu.Kd = glm::vec4(0.9f, 0.5f, 0.3f, 0.0f);
     lu.Ld = glm::vec4(1.0f, 1.0f, 1.0f, 0.0f);
     lu.Ka = 0.1f * lu.Kd;
+    lu.fogColor = glm::vec4(0.5f, 0.5f, 0.5f, 1.0f);
 
     vk::DeviceSize uniformObjectSize = sizeof(CameraUniform) + sizeof(LightUniform);
     lightUniformOffset = sizeof(CameraUniform);
@@ -238,7 +239,7 @@ void MyVulkanApp::userInit()
         vk::CommandBufferBeginInfo commandBeginInfo({}, nullptr);
         commandBuffers[i].begin(commandBeginInfo);
         std::vector<vk::ClearValue> clearValues;
-        clearValues.push_back(vk::ClearColorValue(std::array<float, 4>{ 0, 0, 0, 1 }));
+        clearValues.push_back(vk::ClearColorValue(std::array<float, 4>{ 0.5, 0.5, 0.5, 1 }));
         clearValues.push_back(vk::ClearDepthStencilValue(1.0f, 0));
         vk::RenderPassBeginInfo renderPassBeginInfo(shader.getRenderPass(), framebuffers[i], { {0,0},swapChain.extent() }, clearValues.size(), clearValues.data());
         commandBuffers[i].beginRenderPass(renderPassBeginInfo, vk::SubpassContents::eInline);

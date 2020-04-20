@@ -29,6 +29,7 @@ public:
         glm::vec4 Kd;
         glm::vec4 Ld;
         glm::vec4 Ka;
+        glm::vec4 fogColor;
     };
 
     struct CameraProperty
