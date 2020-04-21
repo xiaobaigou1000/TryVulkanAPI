@@ -96,7 +96,7 @@ public:
             fmt::print("{:>10.4f} * x0", rowOfA[0]);
             for (size_t j = 1; j < rowOfA.n_elem; j++)
             {
-                fmt::print(" * {:>10.4f} * x{}", rowOfA[j], j);
+                fmt::print(" + {:>10.4f} * x{}", rowOfA[j], j);
             }
             fmt::print(" = {:>10.4f}\n", b[i]);
         }
