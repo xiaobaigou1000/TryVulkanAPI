@@ -1,0 +1,42 @@
+#version 450
+precision highp float;
+
+layout(local_size_x = 1, local_size_y = 1, local_size_z = 1)in;
+
+layout(set = 0, binding = 0) buffer MatrixA
+{
+    double data[];
+}mata;
+
+layout(set = 0, binding = 1) buffer VectorB
+{
+    double data[];
+}vecb;
+
+layout(set = 0, binding = 2) buffer VectorAssumeX
+{
+    double data[];
+}assumex;
+
+layout(set = 0, binding = 3) buffer VectorResult
+{
+    double data[];
+}result;
+
+layout(push_constant) uniform ConstantBlock
+{
+    int n_cols;
+}pushConst;
+
+void main()
+{
+    uint idx = gl_WorkGroupID.x;
+
+    double temp = 0.0;
+    for(uint i = 0; i < pushConst.n_cols; ++i)
+    {
+        temp += mata.data[idx + i * pushConst.n_cols] * assumex.data[i];
+    }
+    temp -= mata.data[idx + idx * pushConst.n_cols] * assumex.data[idx];
+    result.data[idx] = 1.0 / mata.data[idx + idx * pushConst.n_cols] * (vecb.data[idx] - temp);
+}

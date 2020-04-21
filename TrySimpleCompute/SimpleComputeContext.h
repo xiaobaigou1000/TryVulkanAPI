@@ -105,7 +105,9 @@ public:
     {
         float queuePriority = 1.0f;
         vk::DeviceQueueCreateInfo queueInfo({}, queueFamilyIndex, 1, &queuePriority);
-        vk::DeviceCreateInfo deviceInfo({}, 1, &queueInfo, 0, nullptr, 0, nullptr, nullptr);
+        vk::PhysicalDeviceFeatures physicalDeviceFeatures;
+        physicalDeviceFeatures.shaderFloat64 = VK_TRUE;
+        vk::DeviceCreateInfo deviceInfo({}, 1, &queueInfo, 0, nullptr, 0, nullptr, &physicalDeviceFeatures);
         device = physicalDevice.createDevice(deviceInfo);
     }
 
@@ -140,7 +142,7 @@ public:
         vk::BufferCreateInfo bufferInfo(
             {},
             size,
-            vk::BufferUsageFlagBits::eStorageBuffer,
+            usage,
             vk::SharingMode::eExclusive,
             1,
             &queueFamilyIndex);
